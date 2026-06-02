@@ -1,0 +1,1853 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>성민의 작업일지</title>
+<link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#1f1b17" media="(prefers-color-scheme: dark)" />
+<script>
+  /* 저장된 테마를 페인트 전에 적용해 깜빡임 방지 */
+  try{
+    var t = localStorage.getItem("worklog:theme");
+    if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+  }catch(e){}
+</script>
+<style>
+  /* ============================================================
+     작업 일지 — Daily Work Log
+     단일 파일 · Vanilla JS · 종이 노트 분위기
+     ============================================================ */
+
+  /* ── Warm Light : 기본(라이트) 팔레트 ─────────────────────── */
+  :root{
+    --bg:#faf7f2;
+    --surface:#ffffff;
+    --surface-2:#f1ece3;
+    --text:#2b2724;
+    --muted:#8a8178;
+    --line:#e7e0d4;
+    --line-strong:#d6ccbb;
+    --accent:#c2683e;
+    --accent-hover:#b25731;
+    --accent-text:#ffffff;
+    --accent-soft:rgba(194,104,62,0.12);
+    --ok:#5c8a5a;
+    --danger:#c0473a;
+    --shadow:0 1px 2px rgba(60,40,20,0.05), 0 8px 28px rgba(60,40,20,0.07);
+    --shadow-lg:0 18px 56px rgba(40,25,10,0.16);
+    --ring:0 0 0 4px var(--accent-soft);
+    --blur-bg:rgba(255,253,250,0.72);
+    --radius:18px;
+    --radius-sm:12px;
+    --display:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    --sans:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+  }
+
+  /* ── Warm Dark : 순흑이 아닌 따뜻한 차콜 ───────────────────── */
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]){
+      --bg:#1f1b17;
+      --surface:#2a2521;
+      --surface-2:#342e28;
+      --text:#ede6db;
+      --muted:#a89e90;
+      --line:#3d362e;
+      --line-strong:#574e43;
+      --accent:#d98a5f;
+      --accent-hover:#e49b72;
+      --accent-text:#1f1b17;
+      --accent-soft:rgba(217,138,95,0.20);
+      --ok:#7fb47c;
+      --danger:#e0685b;
+      --shadow:0 1px 2px rgba(0,0,0,0.4), 0 10px 32px rgba(0,0,0,0.5);
+      --shadow-lg:0 18px 56px rgba(0,0,0,0.6);
+      --blur-bg:rgba(42,37,33,0.72);
+    }
+  }
+  /* 사용자가 직접 다크를 선택한 경우(시스템 설정과 무관) */
+  :root[data-theme="dark"]{
+    --bg:#1f1b17;
+    --surface:#2a2521;
+    --surface-2:#342e28;
+    --text:#ede6db;
+    --muted:#a89e90;
+    --line:#3d362e;
+    --line-strong:#574e43;
+    --accent:#d98a5f;
+    --accent-hover:#e49b72;
+    --accent-text:#1f1b17;
+    --accent-soft:rgba(217,138,95,0.20);
+    --ok:#7fb47c;
+    --danger:#e0685b;
+    --shadow:0 1px 2px rgba(0,0,0,0.4), 0 10px 32px rgba(0,0,0,0.5);
+    --shadow-lg:0 18px 56px rgba(0,0,0,0.6);
+    --blur-bg:rgba(42,37,33,0.72);
+  }
+
+  *{box-sizing:border-box}
+  html,body{margin:0;padding:0}
+  html{ -webkit-text-size-adjust:100%; }
+  body{
+    font-family:var(--sans);
+    background:var(--bg);
+    color:var(--text);
+    font-feature-settings:"tnum" 1;
+    line-height:1.55;
+    letter-spacing:-0.01em;
+    min-height:100dvh;
+    -webkit-font-smoothing:antialiased;
+    -moz-osx-font-smoothing:grayscale;
+  }
+  body.modal-open{overflow:hidden}
+
+  button{ font-family:inherit; color:inherit; cursor:pointer; }
+  input, textarea{ font-family:inherit; color:inherit; }
+  ::selection{ background:var(--accent-soft); color:var(--text); }
+
+  /* ---------- Layout ---------- */
+  .page{
+    max-width:720px;
+    margin:0 auto;
+    padding:64px 28px 120px;
+  }
+  @media (max-width:600px){
+    .page{ padding:40px 18px 100px; }
+  }
+
+  /* ---------- Header ---------- */
+  header.top{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:16px;
+    margin-bottom:6px;
+  }
+  h1.title{
+    font-family:var(--display);
+    font-weight:700;
+    font-size:40px;
+    line-height:1.05;
+    margin:0;
+    letter-spacing:-0.03em;
+  }
+  @media (max-width:600px){ h1.title{ font-size:32px; } }
+  .header-actions{ display:flex; align-items:center; gap:8px; }
+  .menu-wrap{ position:relative; }
+  .icon-btn{
+    width:38px; height:38px;
+    border-radius:50%;
+    border:none;
+    background:var(--surface-2);
+    color:var(--text);
+    display:inline-flex; align-items:center; justify-content:center;
+    transition:background-color .18s ease, transform .1s ease;
+  }
+  .icon-btn:hover{ background:var(--line); }
+  .icon-btn:active{ transform:scale(0.94); }
+  .icon-btn svg{ width:18px; height:18px; stroke:currentColor; }
+
+  .menu{
+    position:absolute;
+    top:calc(100% + 10px);
+    right:0;
+    min-width:220px;
+    background:var(--blur-bg);
+    -webkit-backdrop-filter:blur(24px) saturate(180%);
+    backdrop-filter:blur(24px) saturate(180%);
+    border:1px solid var(--line);
+    border-radius:16px;
+    padding:7px;
+    z-index:50;
+    box-shadow:var(--shadow-lg);
+    opacity:0; transform:translateY(-6px) scale(0.98); transform-origin:top right; pointer-events:none;
+    transition:opacity .18s ease, transform .18s ease;
+  }
+  .menu[data-open="true"]{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  .menu button{
+    display:block;
+    width:100%;
+    text-align:left;
+    padding:10px 12px;
+    border:none;
+    background:transparent;
+    border-radius:10px;
+    font-size:14px;
+    font-weight:450;
+    color:var(--text);
+    transition:background-color .12s ease;
+  }
+  .menu button:hover{ background:var(--surface-2); color:var(--text); }
+  .menu .divider{ height:1px; background:var(--line); margin:5px 8px; }
+
+  /* ---------- Sub: stats ---------- */
+  .stats{
+    color:var(--muted);
+    font-size:13px;
+    margin:0 0 28px 0;
+    letter-spacing:0.01em;
+  }
+  .stats b{ color:var(--text); font-weight:600; }
+  .stats .sep{ margin:0 8px; opacity:.5; }
+
+  /* ---------- Controls (search + new) ---------- */
+  .controls{
+    display:flex;
+    gap:10px;
+    align-items:center;
+    margin-bottom:18px;
+  }
+  .search{
+    flex:1;
+    display:flex; align-items:center;
+    background:var(--surface-2);
+    border:1px solid transparent;
+    border-radius:12px;
+    padding:10px 14px 10px 40px;
+    position:relative;
+    transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+  }
+  .search:focus-within{ background:var(--surface); border-color:var(--accent); box-shadow:var(--ring); }
+  .search svg{
+    position:absolute;
+    left:14px; top:50%;
+    transform:translateY(-50%);
+    width:16px; height:16px;
+    color:var(--muted);
+  }
+  .search input{
+    border:none; outline:none;
+    background:transparent;
+    width:100%;
+    font-size:15px;
+  }
+  .btn{
+    border:1px solid var(--line);
+    background:var(--surface);
+    color:var(--text);
+    border-radius:980px;
+    padding:10px 20px;
+    font-size:15px;
+    font-weight:500;
+    letter-spacing:-0.01em;
+    box-shadow:var(--shadow);
+    transition:background-color .18s ease, transform .1s ease, box-shadow .18s ease;
+    white-space:nowrap;
+  }
+  .btn:hover{ background:var(--surface-2); }
+  .btn:active{ transform:scale(0.97); }
+  .btn.ghost{
+    background:var(--surface-2);
+    color:var(--text);
+  }
+  .btn.ghost:hover{ background:var(--line); }
+  .btn.danger{
+    background:transparent;
+    color:var(--danger);
+  }
+  .btn.danger:hover{ background:var(--danger); color:#fff; }
+
+  @media (max-width:600px){
+    .controls{ flex-wrap:wrap; }
+    .search{ flex:1 1 100%; }
+    .btn.new{ flex:1; }
+  }
+
+  /* ---------- Month filter ---------- */
+  .months{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding-bottom:8px;
+    margin:0 -4px 30px;
+    padding-left:4px; padding-right:4px;
+    scrollbar-width:none;
+  }
+  .months::-webkit-scrollbar{ display:none; }
+  .pill{
+    flex:none;
+    border:none;
+    background:var(--surface-2);
+    border-radius:980px;
+    padding:7px 15px;
+    font-size:13px;
+    font-weight:500;
+    color:var(--muted);
+    transition:color .15s ease, background-color .15s ease, transform .1s ease;
+  }
+  .pill:hover{ background:var(--line); color:var(--text); }
+  .pill:active{ transform:scale(0.96); }
+  .pill[aria-pressed="true"]{
+    background:var(--surface);
+    color:var(--text);
+    box-shadow:var(--shadow);
+  }
+  .pill[aria-pressed="true"]:hover{ background:var(--surface); }
+
+  /* ---------- Entries : 읽기 우선 타임라인 피드 ---------- */
+  .entries{ display:flex; flex-direction:column; gap:18px; }
+
+  .month-divider{
+    font-size:13px;
+    font-weight:600;
+    color:var(--muted);
+    margin:14px 2px 0;
+  }
+  .month-divider:first-child{ margin-top:0; }
+
+  .entry{
+    background:var(--surface);
+    border:none;
+    border-radius:var(--radius);
+    padding:22px 24px;
+    box-shadow:var(--shadow);
+    animation:fadeIn .35s cubic-bezier(.16,1,.3,1) both;
+    transition:box-shadow .22s ease;
+  }
+  .entry:hover{ box-shadow:var(--shadow-lg); }
+  .entry:hover .entry-edit{ opacity:1; }
+
+  .entry-head{
+    display:flex;
+    align-items:center;
+    justify-content:space-between;
+    gap:12px;
+    margin-bottom:12px;
+  }
+  .entry-date{ font-size:13.5px; color:var(--muted); }
+  .entry-date .accent{ color:var(--accent); font-weight:600; margin-right:5px; }
+  .entry-edit{
+    width:32px; height:32px;
+    border-radius:50%;
+    border:none;
+    background:var(--surface-2);
+    color:var(--muted);
+    display:inline-flex; align-items:center; justify-content:center;
+    opacity:0;
+    transition:opacity .18s ease, background-color .15s ease, color .15s ease, transform .1s ease;
+    flex-shrink:0;
+  }
+  .entry-edit:hover{ background:var(--accent); color:var(--accent-text); }
+  .entry-edit:active{ transform:scale(0.92); }
+  .entry-edit svg{ width:15px; height:15px; }
+  @media (hover:none){ .entry-edit{ opacity:1; } }
+
+  /* 본문: 넉넉한 글줄·줄간격으로 그 자리에서 읽기 */
+  .entry-text{
+    white-space:pre-wrap;
+    word-break:break-word;
+    font-size:16.5px;
+    line-height:1.8;
+    color:var(--text);
+  }
+  .entry-text.is-clamped{
+    display:-webkit-box;
+    -webkit-line-clamp:12;
+    -webkit-box-orient:vertical;
+    overflow:hidden;
+    position:relative;
+  }
+  .entry-text.is-clamped::after{
+    content:"";
+    position:absolute; left:0; right:0; bottom:0;
+    height:48px;
+    background:linear-gradient(rgba(0,0,0,0), var(--surface));
+    pointer-events:none;
+  }
+  .entry-text mark{
+    background:rgba(255,214,10,0.45);
+    color:inherit;
+    padding:0 3px;
+    border-radius:4px;
+  }
+  .more-btn{
+    margin-top:8px;
+    border:none;
+    background:transparent;
+    color:var(--accent);
+    font-size:14px;
+    font-weight:600;
+    padding:4px 0;
+  }
+  .more-btn:hover{ text-decoration:underline; }
+
+  /* 사진: 안 잘리게, 컬럼 폭에 맞춰 편하게 */
+  .entry-photos{ margin-top:14px; display:flex; flex-direction:column; gap:10px; }
+  .entry-photos.multi{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(180px, 1fr));
+    gap:8px;
+  }
+  .entry-photos img{
+    width:100%;
+    border-radius:var(--radius-sm);
+    background:var(--surface-2);
+    cursor:zoom-in;
+    display:block;
+  }
+  .entry-photos.single img{ max-height:560px; object-fit:contain; }
+  .entry-photos.multi img{ aspect-ratio:4/3; object-fit:cover; }
+
+  @keyframes fadeIn{
+    from{ opacity:0; transform:translateY(8px); }
+    to{ opacity:1; transform:translateY(0); }
+  }
+
+  /* ---------- Empty ---------- */
+  .empty{
+    text-align:center;
+    padding:90px 20px;
+    color:var(--muted);
+  }
+  .empty .e-title{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:24px;
+    letter-spacing:-0.02em;
+    color:var(--text);
+    margin-bottom:8px;
+  }
+  .empty .e-sub{ font-size:15px; }
+
+  /* ---------- Modal ---------- */
+  .scrim{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.4);
+    -webkit-backdrop-filter:blur(8px);
+    backdrop-filter:blur(8px);
+    z-index:100;
+    display:none;
+    align-items:flex-start;
+    justify-content:center;
+    padding:60px 16px;
+    overflow-y:auto;
+  }
+  .scrim[data-open="true"]{ display:flex; }
+  .modal{
+    background:var(--surface);
+    border:none;
+    border-radius:22px;
+    width:100%;
+    max-width:580px;
+    padding:30px 28px 24px;
+    box-shadow:var(--shadow-lg);
+    animation:modalIn .26s cubic-bezier(.16,1,.3,1) both;
+  }
+  @keyframes modalIn{
+    from{ opacity:0; transform:translateY(16px) scale(0.98); }
+    to{ opacity:1; transform:translateY(0) scale(1); }
+  }
+  .modal h2{
+    font-family:var(--display);
+    font-weight:600;
+    font-size:24px;
+    letter-spacing:-0.02em;
+    margin:0 0 20px;
+  }
+  .field{ margin-bottom:16px; }
+  .field label{
+    display:block;
+    font-size:13px;
+    font-weight:500;
+    color:var(--muted);
+    letter-spacing:-0.01em;
+    margin-bottom:7px;
+  }
+  .field input.date-text, .field textarea{
+    width:100%;
+    background:var(--surface-2);
+    border:1px solid transparent;
+    border-radius:var(--radius-sm);
+    padding:11px 13px;
+    font-size:15px;
+    outline:none;
+    transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
+  }
+  .field input.date-text:focus, .field textarea:focus{ background:var(--surface); border-color:var(--accent); box-shadow:var(--ring); }
+  .field textarea{ resize:vertical; min-height:140px; line-height:1.65; }
+
+  .date-row{ display:flex; gap:8px; align-items:stretch; }
+  .date-row .date-text{ flex:1; min-width:0; }
+  .date-cal{
+    position:relative;
+    flex:none;
+    width:48px;
+    border:1px solid transparent;
+    border-radius:var(--radius-sm);
+    background:var(--surface-2);
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    justify-content:center;
+    cursor:pointer;
+    transition:border-color .15s ease, color .15s ease;
+  }
+  .date-cal:hover{ background:var(--line); color:var(--text); }
+  .date-cal svg{ width:20px; height:20px; pointer-events:none; }
+  .date-cal input[type="date"]{
+    position:absolute; inset:0;
+    width:100%; height:100%;
+    opacity:0; cursor:pointer;
+    border:0; padding:0; margin:0;
+  }
+
+  .date-hint{
+    margin-top:7px;
+    font-size:12.5px;
+    color:var(--muted);
+    display:flex;
+    align-items:center;
+    gap:6px;
+    animation:hintIn .18s ease;
+  }
+  .date-hint b{ color:var(--accent); font-weight:600; }
+  .date-hint .dot{
+    width:7px; height:7px; border-radius:50%;
+    background:var(--ok); flex:none;
+  }
+  .date-hint.warn{ color:var(--danger); }
+  .date-hint.warn b{ color:var(--danger); }
+  .date-hint.warn .dot{ background:var(--danger); }
+  @keyframes hintIn{ from{ opacity:0; transform:translateY(-2px); } to{ opacity:1; transform:none; } }
+
+  .dropzone{
+    border:1.5px dashed var(--line-strong);
+    border-radius:var(--radius-sm);
+    padding:20px;
+    text-align:center;
+    color:var(--muted);
+    font-size:14px;
+    cursor:pointer;
+    transition:background-color .15s ease, border-color .15s ease, color .15s ease;
+  }
+  .dropzone:hover, .dropzone.dragover{
+    background:var(--surface-2);
+    border-color:var(--line-strong);
+    color:var(--text);
+  }
+  .dropzone b{ color:var(--text); font-weight:600; }
+
+  .thumbs{
+    display:grid;
+    grid-template-columns:repeat(auto-fill, minmax(90px, 1fr));
+    gap:6px;
+    margin-top:10px;
+  }
+  .thumb{
+    position:relative;
+    aspect-ratio:1/1;
+    border-radius:8px;
+    overflow:hidden;
+    background:var(--surface-2);
+    border:1px solid var(--line);
+  }
+  .thumb img{ width:100%; height:100%; object-fit:cover; display:block; }
+  .thumb .x{
+    position:absolute;
+    top:4px; right:4px;
+    width:22px; height:22px;
+    border-radius:50%;
+    border:none;
+    background:rgba(0,0,0,0.65);
+    color:#fff;
+    font-size:12px;
+    line-height:1;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .thumb .x:hover{ background:rgba(0,0,0,0.85); }
+
+  .modal-actions{
+    display:flex;
+    justify-content:space-between;
+    align-items:center;
+    gap:10px;
+    margin-top:18px;
+  }
+  .modal-actions .right{ display:flex; gap:8px; }
+
+  /* ---------- Lightbox ---------- */
+  .lightbox{
+    position:fixed; inset:0;
+    background:rgba(0,0,0,0.92);
+    z-index:200;
+    display:none;
+    align-items:center;
+    justify-content:center;
+    padding:20px;
+  }
+  .lightbox[data-open="true"]{ display:flex; }
+  .lightbox img{
+    max-width:100%;
+    max-height:100%;
+    object-fit:contain;
+    border-radius:6px;
+  }
+  .lightbox .close{
+    position:absolute;
+    top:18px; right:18px;
+    width:38px; height:38px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.1);
+    border:1px solid rgba(255,255,255,0.2);
+    color:#fff;
+    font-size:18px;
+    display:inline-flex; align-items:center; justify-content:center;
+  }
+  .lightbox .close:hover{ background:rgba(255,255,255,0.2); }
+  .lb-nav{
+    position:absolute;
+    top:50%; transform:translateY(-50%);
+    width:48px; height:48px;
+    border-radius:50%;
+    background:rgba(255,255,255,0.12);
+    border:1px solid rgba(255,255,255,0.18);
+    -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+    color:#fff;
+    display:inline-flex; align-items:center; justify-content:center;
+    transition:background-color .15s ease, transform .1s ease;
+    z-index:1;
+  }
+  .lb-nav svg{ width:24px; height:24px; }
+  .lb-nav:hover{ background:rgba(255,255,255,0.24); }
+  .lb-nav:active{ transform:translateY(-50%) scale(0.92); }
+  .lb-nav.prev{ left:16px; }
+  .lb-nav.next{ right:16px; }
+  .lb-nav[hidden]{ display:none; }
+  .lb-count{
+    position:absolute;
+    left:50%; bottom:20px;
+    transform:translateX(-50%);
+    background:rgba(0,0,0,0.55);
+    -webkit-backdrop-filter:blur(12px); backdrop-filter:blur(12px);
+    color:#fff; font-size:13px; font-weight:500;
+    padding:6px 14px; border-radius:980px;
+  }
+  .lb-count[hidden]{ display:none; }
+  @media (max-width:600px){
+    .lb-nav{ width:42px; height:42px; }
+    .lb-nav.prev{ left:8px; }
+    .lb-nav.next{ right:8px; }
+  }
+
+  /* ---------- Summary ---------- */
+  .summary-body{
+    font-size:15.5px;
+    line-height:1.75;
+    color:var(--text);
+    white-space:pre-wrap;
+    word-break:break-word;
+    max-height:55vh;
+    overflow-y:auto;
+    margin-bottom:4px;
+  }
+  .summary-note{ color:var(--muted); font-size:13.5px; line-height:1.6; margin-bottom:12px; }
+  .summary-note b{ color:var(--text); font-weight:600; }
+  .summary-pre{
+    font-size:13px;
+    line-height:1.6;
+    color:var(--muted);
+    background:var(--surface-2);
+    border-radius:var(--radius-sm);
+    padding:12px 14px;
+    max-height:30vh;
+    overflow:auto;
+    white-space:pre-wrap;
+    word-break:break-word;
+  }
+  .summary-loading{ color:var(--muted); display:flex; align-items:center; gap:10px; }
+  .summary-loading .spinner{
+    width:16px; height:16px; flex:none;
+    border:2px solid var(--line);
+    border-top-color:var(--accent);
+    border-radius:50%;
+    animation:spin .7s linear infinite;
+  }
+  @keyframes spin{ to{ transform:rotate(360deg); } }
+
+  /* ---------- Confirm ---------- */
+  .confirm-msg{
+    color:var(--text);
+    font-size:15px;
+    margin:0 0 18px;
+    line-height:1.65;
+  }
+  .confirm-msg b{ font-weight:600; }
+
+  /* ---------- Toast ---------- */
+  .toast{
+    position:fixed;
+    left:50%;
+    bottom:32px;
+    transform:translateX(-50%) translateY(20px);
+    background:rgba(40,40,42,0.82);
+    -webkit-backdrop-filter:blur(20px) saturate(180%);
+    backdrop-filter:blur(20px) saturate(180%);
+    color:#fff;
+    padding:12px 22px;
+    border-radius:980px;
+    font-size:14px;
+    font-weight:500;
+    box-shadow:var(--shadow-lg);
+    opacity:0;
+    pointer-events:none;
+    transition:opacity .25s ease, transform .25s cubic-bezier(.16,1,.3,1);
+    z-index:300;
+    max-width:90vw;
+  }
+  .toast[data-show="true"]{ opacity:1; transform:translateX(-50%) translateY(0); }
+
+  /* ---------- Misc ---------- */
+  .sr-only{
+    position:absolute; width:1px; height:1px;
+    padding:0; margin:-1px; overflow:hidden;
+    clip:rect(0,0,0,0); white-space:nowrap; border:0;
+  }
+</style>
+</head>
+<body>
+  <main class="page">
+    <header class="top">
+      <h1 class="title">성민의 작업일지</h1>
+      <div class="header-actions">
+      <button class="icon-btn" id="themeBtn" aria-label="라이트/다크 테마 전환"></button>
+      <div class="menu-wrap">
+        <button class="icon-btn" id="menuBtn" aria-label="메뉴 열기" aria-haspopup="true" aria-expanded="false">
+          <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
+        </button>
+        <div class="menu" id="menu" role="menu">
+          <button id="summaryBtn" role="menuitem">✦ AI로 요약하기</button>
+          <div class="divider"></div>
+          <button id="exportBtn" role="menuitem">백업 내려받기</button>
+          <button id="importBtn" role="menuitem">백업 가져오기</button>
+          <div class="divider"></div>
+          <button id="aboutBtn" role="menuitem">작업 일지에 대하여</button>
+        </div>
+      </div>
+      </div>
+    </header>
+
+    <p class="stats" id="stats" aria-live="polite"></p>
+
+    <div class="controls">
+      <label class="search">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
+        <input id="searchInput" type="search" placeholder="기록 검색" aria-label="기록 본문 검색" autocomplete="off" />
+      </label>
+      <button class="btn new" id="newBtn" aria-label="새 기록 작성">새 기록</button>
+    </div>
+
+    <nav class="months" id="months" aria-label="월별 필터"></nav>
+
+    <section class="entries" id="entries" aria-live="polite"></section>
+  </main>
+
+  <!-- Editor Modal -->
+  <div class="scrim" id="editorScrim" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="editorTitle">
+      <h2 id="editorTitle">새 기록</h2>
+      <div class="field">
+        <label for="dateText">날짜</label>
+        <div class="date-row">
+          <input id="dateText" class="date-text" type="text" autocomplete="off"
+                 placeholder="예: 26.06.01 · 6월 1일 · 오늘" />
+          <label class="date-cal" aria-label="달력에서 선택" title="달력에서 선택">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+            <input id="datePick" type="date" tabindex="-1" />
+          </label>
+        </div>
+        <div class="date-hint" id="dateHint" hidden></div>
+      </div>
+      <div class="field">
+        <label for="textInput">본문</label>
+        <textarea id="textInput" placeholder="오늘은 무엇을 하셨나요?"></textarea>
+      </div>
+      <div class="field">
+        <label>사진</label>
+        <div class="dropzone" id="dropzone" tabindex="0" role="button" aria-label="사진 추가 또는 끌어다 놓기">
+          <b>사진 추가</b> · 클릭하거나 끌어다 놓으세요
+        </div>
+        <input id="fileInput" type="file" accept="image/*" multiple hidden />
+        <div class="thumbs" id="thumbs"></div>
+      </div>
+      <div class="modal-actions">
+        <button class="btn danger" id="deleteBtn" hidden>삭제</button>
+        <div class="right" style="margin-left:auto">
+          <button class="btn ghost" id="cancelBtn">취소</button>
+          <button class="btn" id="saveBtn">저장</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Summary Modal -->
+  <div class="scrim" id="summaryScrim" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="summaryTitle" style="max-width:560px">
+      <h2 id="summaryTitle">✦ AI 요약</h2>
+      <div class="summary-body" id="summaryBody"></div>
+      <div class="modal-actions">
+        <div class="right" style="margin-left:auto">
+          <button class="btn ghost" id="summaryCopy" hidden>복사</button>
+          <button class="btn" id="summaryClose">닫기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Confirm Modal -->
+  <div class="scrim" id="confirmScrim" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="confirmTitle" style="max-width:420px">
+      <h2 id="confirmTitle">확인</h2>
+      <p class="confirm-msg" id="confirmMsg"></p>
+      <div class="modal-actions">
+        <div class="right" style="margin-left:auto">
+          <button class="btn ghost" id="confirmCancel">취소</button>
+          <button class="btn" id="confirmOk">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lightbox -->
+  <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="사진 확대 보기">
+    <button class="close" id="lbClose" aria-label="닫기">✕</button>
+    <button class="lb-nav prev" id="lbPrev" aria-label="이전 사진" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 18l-6-6 6-6"></path></svg>
+    </button>
+    <img id="lbImg" alt="" />
+    <button class="lb-nav next" id="lbNext" aria-label="다음 사진" hidden>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round"><path d="M9 6l6 6-6 6"></path></svg>
+    </button>
+    <div class="lb-count" id="lbCount" hidden></div>
+  </div>
+
+  <input id="importFile" type="file" accept="application/json,.json" hidden />
+
+  <div class="toast" id="toast" role="status" aria-live="polite"></div>
+
+<script>
+"use strict";
+
+/* ============================================================
+   Storage abstraction
+   - window.storage (Claude.ai artifact) 우선, 없으면 localStorage 폴백
+   - get / set / delete / list 4종 메서드 공통 인터페이스
+   ============================================================ */
+const storage = (function(){
+  const hasArtifact = typeof window !== "undefined"
+    && typeof window.storage === "object"
+    && window.storage !== null
+    && typeof window.storage.get === "function";
+
+  if (hasArtifact) {
+    return {
+      kind: "artifact",
+      async get(key){ return await window.storage.get(key); },
+      async set(key, val){ return await window.storage.set(key, val); },
+      async delete(key){ return await window.storage.delete(key); },
+      async list(prefix){
+        const all = await window.storage.list();
+        const keys = Array.isArray(all) ? all : (all && all.keys) || [];
+        return keys.filter(k => !prefix || String(k).startsWith(prefix));
+      },
+    };
+  }
+
+  return {
+    kind: "localStorage",
+    async get(key){ return localStorage.getItem(key); },
+    async set(key, val){ localStorage.setItem(key, val); },
+    async delete(key){ localStorage.removeItem(key); },
+    async list(prefix){
+      const out = [];
+      for (let i = 0; i < localStorage.length; i++){
+        const k = localStorage.key(i);
+        if (!prefix || (k && k.startsWith(prefix))) out.push(k);
+      }
+      return out;
+    },
+  };
+})();
+
+const KEY_PREFIX = "e:";
+const MAX_IMG_EDGE = 1600;
+const JPEG_QUALITY = 0.82;
+
+/* ============================================================
+   State
+   ============================================================ */
+const state = {
+  entries: [],         // loaded entries
+  search: "",
+  monthFilter: null,   // "YYYY-MM" or null
+  editing: null,       // entry being edited, or null when creating
+  draftImages: [],     // dataURLs in editor
+};
+
+/* ============================================================
+   Utilities
+   ============================================================ */
+function genId(){
+  return Date.now().toString(36) + Math.random().toString(36).slice(2, 8);
+}
+function escapeHtml(s){
+  return String(s == null ? "" : s)
+    .replace(/&/g, "&amp;")
+    .replace(/</g, "&lt;")
+    .replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;")
+    .replace(/'/g, "&#39;");
+}
+function todayISO(){
+  const d = new Date();
+  const y = d.getFullYear();
+  const m = String(d.getMonth()+1).padStart(2,"0");
+  const day = String(d.getDate()).padStart(2,"0");
+  return `${y}-${m}-${day}`;
+}
+function parseDate(iso){
+  // iso = "YYYY-MM-DD" -> Date at local midnight
+  const [y,m,d] = iso.split("-").map(Number);
+  return new Date(y, m-1, d);
+}
+function daysBetween(a, b){
+  const MS = 24*60*60*1000;
+  const aa = new Date(a.getFullYear(), a.getMonth(), a.getDate()).getTime();
+  const bb = new Date(b.getFullYear(), b.getMonth(), b.getDate()).getTime();
+  return Math.round((aa - bb) / MS);
+}
+const WEEKDAYS = ["일요일","월요일","화요일","수요일","목요일","금요일","토요일"];
+function formatDateLine(iso){
+  const d = parseDate(iso);
+  const today = new Date();
+  const diff = daysBetween(d, today);
+  const wd = WEEKDAYS[d.getDay()];
+  let accent = "";
+  if (diff === 0) accent = "오늘";
+  else if (diff === -1) accent = "어제";
+  const full = `${d.getFullYear()}년 ${d.getMonth()+1}월 ${d.getDate()}일 · ${wd}`;
+  return { accent, full };
+}
+function formatMonth(ym){
+  const [y, m] = ym.split("-").map(Number);
+  return `${y}년 ${m}월`;
+}
+
+/* ============================================================
+   Flexible date parsing (본문에 입력한 날짜 자동 인식)
+   - "26.06.01", "2026-6-1", "2026/06/01", "6월 1일",
+     "2026년 6월 1일", "6/1", "오늘/어제/내일/모레/그제" 등 인식
+   - 본문 첫 줄 앞쪽에서 날짜 토큰을 찾음. 못 찾으면 null.
+   ============================================================ */
+function buildISO(y, mo, d){
+  y = Number(y); mo = Number(mo); d = Number(d);
+  if (y < 100) y += 2000;            // 26 -> 2026
+  if (!(mo >= 1 && mo <= 12) || !(d >= 1 && d <= 31)) return null;
+  const dt = new Date(y, mo - 1, d);
+  if (dt.getFullYear() !== y || dt.getMonth() !== mo - 1 || dt.getDate() !== d) {
+    return null;                     // 2/30 같은 잘못된 날짜 차단
+  }
+  return todayISOFrom(dt);
+}
+function todayISOFrom(d){
+  const y = d.getFullYear();
+  const m = String(d.getMonth() + 1).padStart(2, "0");
+  const day = String(d.getDate()).padStart(2, "0");
+  return `${y}-${m}-${day}`;
+}
+function parseFlexibleDate(input){
+  if (!input) return null;
+  // 첫 줄만 보고, 앞쪽의 글머리표(* - • · 공백) 제거
+  let s = String(input).split(/\r?\n/)[0].trim().replace(/^[\*\-•·.\s]+/, "");
+  if (!s) return null;
+  const now = new Date();
+
+  // 상대 날짜 키워드
+  const rel = { "그제": -2, "그저께": -2, "엊그제": -2, "어제": -1, "오늘": 0, "금일": 0, "내일": 1, "낼": 1, "모레": 2, "글피": 3 };
+  for (const k in rel){
+    if (s.startsWith(k)){
+      const d = new Date(now.getFullYear(), now.getMonth(), now.getDate() + rel[k]);
+      return todayISOFrom(d);
+    }
+  }
+
+  let m;
+  // YYYY년 M월 D일 / YY년 M월 D일
+  m = s.match(/^(\d{2,4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
+  if (m) return buildISO(m[1], m[2], m[3]);
+  // M월 D일 (올해)
+  m = s.match(/^(\d{1,2})\s*월\s*(\d{1,2})\s*일?/);
+  if (m) return buildISO(now.getFullYear(), m[1], m[2]);
+  // YYYY.MM.DD / YY.MM.DD ( . - / 또는 공백 구분 )
+  m = s.match(/^(\d{2,4})\s*[.\-\/]\s*(\d{1,2})\s*[.\-\/]\s*(\d{1,2})/);
+  if (m) return buildISO(m[1], m[2], m[3]);
+  // MM/DD (올해) — 구분자 하나, 뒤에 또 다른 숫자 구분자가 없어야 함
+  m = s.match(/^(\d{1,2})\s*[.\-\/]\s*(\d{1,2})(?!\s*[.\-\/]\s*\d)/);
+  if (m){
+    const mm = Number(m[1]), dd = Number(m[2]);
+    if (mm >= 1 && mm <= 12 && dd >= 1 && dd <= 31) return buildISO(now.getFullYear(), mm, dd);
+  }
+  return null;
+}
+
+/* ============================================================
+   Image compression
+   ============================================================ */
+function compressImage(file){
+  return new Promise((resolve, reject) => {
+    if (!file.type.startsWith("image/")) {
+      reject(new Error("이미지 파일만 가능합니다."));
+      return;
+    }
+    const reader = new FileReader();
+    reader.onerror = () => reject(reader.error || new Error("파일 읽기 실패"));
+    reader.onload = () => {
+      const img = new Image();
+      img.onerror = () => reject(new Error("이미지 디코드 실패"));
+      img.onload = () => {
+        const { naturalWidth: w, naturalHeight: h } = img;
+        let tw = w, th = h;
+        const longest = Math.max(w, h);
+        if (longest > MAX_IMG_EDGE) {
+          const ratio = MAX_IMG_EDGE / longest;
+          tw = Math.round(w * ratio);
+          th = Math.round(h * ratio);
+        }
+        const canvas = document.createElement("canvas");
+        canvas.width = tw; canvas.height = th;
+        const ctx = canvas.getContext("2d");
+        ctx.drawImage(img, 0, 0, tw, th);
+        try {
+          const dataUrl = canvas.toDataURL("image/jpeg", JPEG_QUALITY);
+          resolve(dataUrl);
+        } catch (e) { reject(e); }
+      };
+      img.src = reader.result;
+    };
+    reader.readAsDataURL(file);
+  });
+}
+
+/* ============================================================
+   Persistence
+   ============================================================ */
+async function loadAll(){
+  const keys = await storage.list(KEY_PREFIX);
+  const entries = [];
+  for (const k of keys){
+    try {
+      const raw = await storage.get(k);
+      if (!raw) continue;
+      const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+      if (obj && obj.id && obj.date) entries.push(obj);
+    } catch(e){ /* skip corrupted */ }
+  }
+  entries.sort(sortEntries);
+  state.entries = entries;
+}
+function sortEntries(a, b){
+  if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+  return (b.createdAt || 0) - (a.createdAt || 0);
+}
+async function saveEntry(entry){
+  await storage.set(KEY_PREFIX + entry.id, JSON.stringify(entry));
+}
+async function deleteEntry(id){
+  await storage.delete(KEY_PREFIX + id);
+}
+
+/* ============================================================
+   Rendering
+   ============================================================ */
+const $entries = document.getElementById("entries");
+const $months = document.getElementById("months");
+const $stats = document.getElementById("stats");
+
+function filteredEntries(){
+  const q = state.search.trim().toLowerCase();
+  return state.entries.filter(e => {
+    if (state.monthFilter && !e.date.startsWith(state.monthFilter)) return false;
+    if (q && !(e.text || "").toLowerCase().includes(q)) return false;
+    return true;
+  });
+}
+
+function render(){
+  renderStats();
+  renderMonths();
+  renderEntries();
+}
+
+function renderStats(){
+  const total = state.entries.length;
+  const days = new Set(state.entries.map(e => e.date)).size;
+  const photos = state.entries.reduce((acc, e) => acc + (e.images?.length || 0), 0);
+  if (total === 0){
+    $stats.innerHTML = `아직 기록이 없습니다`;
+  } else {
+    $stats.innerHTML =
+      `총 <b>${total}</b>건` +
+      `<span class="sep">·</span>` +
+      `<b>${days}</b>일 기록` +
+      `<span class="sep">·</span>` +
+      `사진 <b>${photos}</b>장`;
+  }
+}
+
+function renderMonths(){
+  const set = new Set();
+  for (const e of state.entries) set.add(e.date.slice(0,7));
+  const months = Array.from(set).sort().reverse();
+  const parts = [];
+  parts.push(
+    `<button class="pill" data-month="" aria-pressed="${state.monthFilter === null}">전체</button>`
+  );
+  for (const ym of months){
+    const pressed = state.monthFilter === ym;
+    parts.push(
+      `<button class="pill" data-month="${ym}" aria-pressed="${pressed}">${escapeHtml(formatMonth(ym))}</button>`
+    );
+  }
+  $months.innerHTML = parts.join("");
+  $months.style.display = months.length === 0 ? "none" : "";
+}
+
+function renderEntries(){
+  const list = filteredEntries();
+  if (list.length === 0){
+    const isEmpty = state.entries.length === 0;
+    const isFilter = !!(state.search || state.monthFilter);
+    $entries.innerHTML = `
+      <div class="empty">
+        <div class="e-title">${isFilter ? "검색 결과가 없어요" : "오늘의 첫 기록"}</div>
+        <div class="e-sub">${
+          isFilter
+            ? "다른 키워드나 월을 선택해보세요"
+            : "오른쪽 위 “새 기록”에서 시작해보세요"
+        }</div>
+      </div>`;
+    return;
+  }
+  const q = state.search.trim();
+  // 월이 바뀔 때마다 구분선을 끼워 스캔하기 쉽게
+  let html = "";
+  let lastMonth = null;
+  for (const e of list){
+    const ym = e.date.slice(0, 7);
+    if (ym !== lastMonth){
+      html += `<div class="month-divider">${escapeHtml(formatMonth(ym))}</div>`;
+      lastMonth = ym;
+    }
+    html += renderEntry(e, q);
+  }
+  $entries.innerHTML = html;
+  enhanceClamps();
+}
+
+// 읽기 우선 카드 — 본문을 그 자리에서 바로 읽음(길면 "계속 읽기")
+function renderEntry(e, query){
+  const dl = formatDateLine(e.date);
+  const dateHtml = `${dl.accent ? `<span class="accent">${dl.accent}</span>` : ""}${escapeHtml(dl.full)}`;
+  const imgs = e.images || [];
+
+  let photos = "";
+  if (imgs.length){
+    const cls = imgs.length > 1 ? "multi" : "single";
+    photos = `<div class="entry-photos ${cls}">` +
+      imgs.map((src, i) => `<img src="${escapeHtml(src)}" alt="첨부 사진 ${i + 1}" data-idx="${i}" data-id="${escapeHtml(e.id)}">`).join("") +
+      `</div>`;
+  }
+
+  let textBlock = "";
+  if (e.text && e.text.trim()){
+    textBlock = `<div class="entry-text is-clamped" data-id="${escapeHtml(e.id)}">${highlightText(e.text, query)}</div>` +
+      `<button class="more-btn" type="button" data-more="${escapeHtml(e.id)}" hidden>계속 읽기</button>`;
+  }
+
+  return `
+    <article class="entry" data-id="${escapeHtml(e.id)}">
+      <div class="entry-head">
+        <div class="entry-date">${dateHtml}</div>
+        <button class="entry-edit" type="button" data-edit="${escapeHtml(e.id)}" aria-label="기록 수정">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+        </button>
+      </div>
+      ${textBlock}
+      ${photos}
+    </article>`;
+}
+
+// 본문이 잘렸을 때만 "계속 읽기" 버튼을 노출
+function enhanceClamps(){
+  $entries.querySelectorAll(".entry-text.is-clamped").forEach(el => {
+    const more = el.nextElementSibling;
+    if (!more || !more.classList.contains("more-btn")) return;
+    if (el.scrollHeight - el.clientHeight > 8){
+      more.hidden = false;
+    } else {
+      el.classList.remove("is-clamped");
+      more.hidden = true;
+    }
+  });
+}
+
+function highlightText(text, query){
+  const safe = escapeHtml(text);
+  if (!query) return safe;
+  const q = escapeHtml(query);
+  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+  return safe.replace(new RegExp(escaped, "gi"), m => `<mark>${m}</mark>`);
+}
+
+/* ============================================================
+   Editor modal
+   ============================================================ */
+const $editorScrim = document.getElementById("editorScrim");
+const $editorTitle = document.getElementById("editorTitle");
+const $dateText = document.getElementById("dateText");
+const $datePick = document.getElementById("datePick");
+const $dateHint = document.getElementById("dateHint");
+const $textInput = document.getElementById("textInput");
+// 본문에서 자동 인식한 날짜를 기억해, 같은 값으로는 다시 덮어쓰지 않음
+let lastAutoDate = null;
+
+function hideDateHint(){
+  $dateHint.hidden = true;
+  $dateHint.className = "date-hint";
+  $dateHint.textContent = "";
+}
+// 날짜 입력칸을 즉시 인식해 힌트 표시 + 달력 동기화
+function recognizeDateField(){
+  const raw = $dateText.value.trim();
+  if (!raw){ hideDateHint(); return null; }
+  const iso = parseFlexibleDate(raw);
+  if (iso){
+    const dl = formatDateLine(iso);
+    $dateHint.className = "date-hint";
+    $dateHint.innerHTML = `<span class="dot"></span>인식됨 → <b>${escapeHtml(dl.full)}</b>`;
+    $datePick.value = iso;            // 달력도 같은 날짜로 맞춰둠
+  } else {
+    $dateHint.className = "date-hint warn";
+    $dateHint.innerHTML = `<span class="dot"></span>날짜를 인식하지 못했어요`;
+  }
+  $dateHint.hidden = false;
+  return iso;
+}
+// 본문 입력 시 첫 줄에서 날짜를 인식해 날짜 칸에 자동 반영
+function autoDetectDateFromText(){
+  const iso = parseFlexibleDate($textInput.value);
+  if (iso && iso !== lastAutoDate){
+    $dateText.value = iso;
+    lastAutoDate = iso;
+    recognizeDateField();
+  }
+}
+const $dropzone = document.getElementById("dropzone");
+const $fileInput = document.getElementById("fileInput");
+const $thumbs = document.getElementById("thumbs");
+const $deleteBtn = document.getElementById("deleteBtn");
+
+function openEditor(entry){
+  state.editing = entry || null;
+  state.draftImages = entry ? [...(entry.images || [])] : [];
+  $editorTitle.textContent = entry ? "기록 수정" : "새 기록";
+  const iso = entry ? entry.date : todayISO();
+  $dateText.value = iso;
+  $datePick.value = iso;
+  $textInput.value = entry ? (entry.text || "") : "";
+  lastAutoDate = iso;
+  recognizeDateField();
+  $deleteBtn.hidden = !entry;
+  renderThumbs();
+  $editorScrim.dataset.open = "true";
+  $editorScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  setTimeout(() => $textInput.focus(), 50);
+}
+function closeEditor(){
+  $editorScrim.dataset.open = "false";
+  $editorScrim.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+  state.editing = null;
+  state.draftImages = [];
+}
+function renderThumbs(){
+  $thumbs.innerHTML = state.draftImages.map((src, i) => `
+    <div class="thumb">
+      <img src="${src}" alt="첨부 사진 ${i+1}">
+      <button class="x" type="button" data-rm="${i}" aria-label="사진 ${i+1} 삭제">✕</button>
+    </div>
+  `).join("");
+}
+
+async function addFiles(files){
+  const arr = Array.from(files || []).filter(f => f.type.startsWith("image/"));
+  if (arr.length === 0) return;
+  for (const f of arr){
+    try {
+      const dataUrl = await compressImage(f);
+      state.draftImages.push(dataUrl);
+    } catch (e){
+      showToast("일부 사진을 추가하지 못했어요");
+    }
+  }
+  renderThumbs();
+}
+
+$dropzone.addEventListener("click", () => $fileInput.click());
+$dropzone.addEventListener("keydown", (e) => {
+  if (e.key === "Enter" || e.key === " ") { e.preventDefault(); $fileInput.click(); }
+});
+$dropzone.addEventListener("dragover", (e) => { e.preventDefault(); $dropzone.classList.add("dragover"); });
+$dropzone.addEventListener("dragleave", () => $dropzone.classList.remove("dragover"));
+$dropzone.addEventListener("drop", (e) => {
+  e.preventDefault();
+  $dropzone.classList.remove("dragover");
+  if (e.dataTransfer?.files) addFiles(e.dataTransfer.files);
+});
+$fileInput.addEventListener("change", (e) => {
+  addFiles(e.target.files);
+  e.target.value = "";
+});
+$thumbs.addEventListener("click", (e) => {
+  const btn = e.target.closest("[data-rm]");
+  if (!btn) return;
+  const idx = Number(btn.dataset.rm);
+  state.draftImages.splice(idx, 1);
+  renderThumbs();
+});
+
+// 날짜 입력칸 타이핑 → 즉시 인식
+$dateText.addEventListener("input", recognizeDateField);
+// 달력에서 고르면 텍스트 칸에 반영 후 인식
+$datePick.addEventListener("change", () => {
+  if ($datePick.value){
+    $dateText.value = $datePick.value;
+    lastAutoDate = $datePick.value;
+    recognizeDateField();
+  }
+});
+// 본문 입력 → 날짜 자동 인식 (첫 줄에 날짜를 적으면 날짜칸 자동 반영)
+$textInput.addEventListener("input", autoDetectDateFromText);
+
+document.getElementById("cancelBtn").addEventListener("click", closeEditor);
+document.getElementById("saveBtn").addEventListener("click", saveFromEditor);
+
+async function saveFromEditor(){
+  const date = parseFlexibleDate($dateText.value);
+  const text = $textInput.value.trim();
+  const images = state.draftImages.slice();
+
+  if (!date){
+    showToast("날짜를 인식하지 못했어요 (예: 26.06.01, 6월 1일, 오늘)");
+    recognizeDateField();
+    $dateText.focus();
+    return;
+  }
+  if (!text && images.length === 0){
+    showToast("본문 또는 사진 중 하나는 필요해요");
+    $textInput.focus();
+    return;
+  }
+
+  const now = Date.now();
+  let entry;
+  if (state.editing){
+    entry = {
+      ...state.editing,
+      date, text, images,
+      updatedAt: now,
+    };
+  } else {
+    entry = {
+      id: genId(),
+      date, text, images,
+      createdAt: now,
+      updatedAt: now,
+    };
+  }
+
+  try {
+    await saveEntry(entry);
+  } catch (err){
+    console.error(err);
+    showToast("저장 실패: 용량 초과 가능성이 있어요");
+    return;
+  }
+
+  const i = state.entries.findIndex(e => e.id === entry.id);
+  if (i >= 0) state.entries[i] = entry;
+  else state.entries.push(entry);
+  state.entries.sort(sortEntries);
+
+  closeEditor();
+  render();
+}
+
+$deleteBtn.addEventListener("click", () => {
+  if (!state.editing) return;
+  const id = state.editing.id;
+  openConfirm({
+    title: "기록 삭제",
+    message: "이 기록을 정말 삭제할까요? 되돌릴 수 없어요.",
+    okText: "삭제",
+    danger: true,
+    onOk: async () => {
+      try {
+        await deleteEntry(id);
+        state.entries = state.entries.filter(e => e.id !== id);
+        closeEditor();
+        render();
+      } catch (err){
+        showToast("삭제에 실패했어요");
+      }
+    },
+  });
+});
+
+/* ============================================================
+   Confirm modal
+   ============================================================ */
+const $confirmScrim = document.getElementById("confirmScrim");
+const $confirmTitle = document.getElementById("confirmTitle");
+const $confirmMsg = document.getElementById("confirmMsg");
+const $confirmOk = document.getElementById("confirmOk");
+const $confirmCancel = document.getElementById("confirmCancel");
+let confirmHandler = null;
+
+function openConfirm({ title, message, okText="확인", danger=false, onOk }){
+  $confirmTitle.textContent = title || "확인";
+  $confirmMsg.innerHTML = message || "";
+  $confirmOk.textContent = okText;
+  $confirmOk.classList.toggle("danger", !!danger);
+  confirmHandler = onOk;
+  $confirmScrim.dataset.open = "true";
+  $confirmScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeConfirm(){
+  $confirmScrim.dataset.open = "false";
+  $confirmScrim.setAttribute("aria-hidden", "true");
+  if ($editorScrim.dataset.open !== "true") document.body.classList.remove("modal-open");
+  confirmHandler = null;
+  $confirmOk.classList.remove("danger");
+}
+$confirmCancel.addEventListener("click", closeConfirm);
+$confirmOk.addEventListener("click", () => {
+  const h = confirmHandler;
+  closeConfirm();
+  if (h) h();
+});
+
+/* ============================================================
+   Lightbox
+   ============================================================ */
+const $lightbox = document.getElementById("lightbox");
+const $lbImg = document.getElementById("lbImg");
+const $lbClose = document.getElementById("lbClose");
+const $lbPrev = document.getElementById("lbPrev");
+const $lbNext = document.getElementById("lbNext");
+const $lbCount = document.getElementById("lbCount");
+let lbImages = [];
+let lbIndex = 0;
+
+function renderLightbox(){
+  $lbImg.src = lbImages[lbIndex] || "";
+  const multi = lbImages.length > 1;
+  $lbPrev.hidden = !multi;
+  $lbNext.hidden = !multi;
+  $lbCount.hidden = !multi;
+  if (multi) $lbCount.textContent = `${lbIndex + 1} / ${lbImages.length}`;
+}
+// images: 단일 문자열 또는 배열 모두 허용
+function openLightbox(images, index){
+  lbImages = Array.isArray(images) ? images.slice() : [images];
+  lbIndex = Math.max(0, Math.min(index || 0, lbImages.length - 1));
+  renderLightbox();
+  $lightbox.dataset.open = "true";
+  $lightbox.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function lbStep(delta){
+  if (lbImages.length < 2) return;
+  lbIndex = (lbIndex + delta + lbImages.length) % lbImages.length;
+  renderLightbox();
+}
+function closeLightbox(){
+  $lightbox.dataset.open = "false";
+  $lightbox.setAttribute("aria-hidden", "true");
+  $lbImg.src = "";
+  lbImages = [];
+  if ($editorScrim.dataset.open !== "true"
+      && $confirmScrim.dataset.open !== "true"){
+    document.body.classList.remove("modal-open");
+  }
+}
+$lbClose.addEventListener("click", closeLightbox);
+$lbPrev.addEventListener("click", (e) => { e.stopPropagation(); lbStep(-1); });
+$lbNext.addEventListener("click", (e) => { e.stopPropagation(); lbStep(1); });
+$lightbox.addEventListener("click", (e) => {
+  if (e.target === $lightbox) closeLightbox();
+});
+// 모바일 스와이프로 사진 넘기기
+let lbTouchX = null;
+$lightbox.addEventListener("touchstart", (e) => {
+  lbTouchX = e.changedTouches[0].clientX;
+}, { passive: true });
+$lightbox.addEventListener("touchend", (e) => {
+  if (lbTouchX === null) return;
+  const dx = e.changedTouches[0].clientX - lbTouchX;
+  if (Math.abs(dx) > 45) lbStep(dx < 0 ? 1 : -1);
+  lbTouchX = null;
+});
+
+/* ============================================================
+   Toast
+   ============================================================ */
+const $toast = document.getElementById("toast");
+let toastTimer = null;
+function showToast(msg){
+  $toast.textContent = msg;
+  $toast.dataset.show = "true";
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => { $toast.dataset.show = "false"; }, 2400);
+}
+
+/* ============================================================
+   Menu (export/import/about)
+   ============================================================ */
+const $menuBtn = document.getElementById("menuBtn");
+const $menu = document.getElementById("menu");
+function setMenu(open){
+  $menu.dataset.open = open ? "true" : "false";
+  $menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+}
+$menuBtn.addEventListener("click", (e) => {
+  e.stopPropagation();
+  setMenu($menu.dataset.open !== "true");
+});
+document.addEventListener("click", (e) => {
+  if (!$menu.contains(e.target) && e.target !== $menuBtn) setMenu(false);
+});
+
+document.getElementById("exportBtn").addEventListener("click", () => {
+  setMenu(false);
+  exportBackup();
+});
+document.getElementById("importBtn").addEventListener("click", () => {
+  setMenu(false);
+  document.getElementById("importFile").click();
+});
+document.getElementById("aboutBtn").addEventListener("click", () => {
+  setMenu(false);
+  openConfirm({
+    title: "작업 일지에 대하여",
+    message:
+      `매일의 작업 흔적을 사진과 짧은 글로 남길 수 있는 1인용 일지입니다.<br><br>` +
+      `· 모든 데이터는 당신의 브라우저에만 저장됩니다<br>` +
+      `· 외부 서버로 전송되지 않습니다<br>` +
+      `· “백업 내려받기”로 언제든 데이터를 이전할 수 있습니다<br><br>` +
+      `<small style="color:var(--muted)">저장소: ${storage.kind === "artifact" ? "Claude.ai 아티팩트" : "브라우저 로컬"}</small>`,
+    okText: "닫기",
+    onOk: () => {},
+  });
+});
+
+function exportBackup(){
+  const data = {
+    version: 1,
+    exportedAt: new Date().toISOString(),
+    entries: state.entries,
+  };
+  const blob = new Blob([JSON.stringify(data, null, 2)], { type: "application/json" });
+  const url = URL.createObjectURL(blob);
+  const a = document.createElement("a");
+  a.href = url;
+  a.download = `worklog-${todayISO()}.json`;
+  document.body.appendChild(a);
+  a.click();
+  document.body.removeChild(a);
+  URL.revokeObjectURL(url);
+  showToast("백업 파일을 내려받았어요");
+}
+
+document.getElementById("importFile").addEventListener("change", async (e) => {
+  const file = e.target.files?.[0];
+  e.target.value = "";
+  if (!file) return;
+  try {
+    const text = await file.text();
+    const data = JSON.parse(text);
+    if (!data || !Array.isArray(data.entries)) throw new Error("invalid");
+
+    const count = data.entries.length;
+    openConfirm({
+      title: "백업 가져오기",
+      message: `<b>${count}</b>건의 기록을 가져올까요? 기존 기록과 병합됩니다.`,
+      okText: "가져오기",
+      onOk: async () => {
+        const existing = new Set(state.entries.map(x => x.id));
+        let added = 0;
+        for (const raw of data.entries){
+          if (!raw || !raw.date) continue;
+          let entry = {
+            id: raw.id || genId(),
+            date: raw.date,
+            text: raw.text || "",
+            images: Array.isArray(raw.images) ? raw.images : [],
+            createdAt: typeof raw.createdAt === "number" ? raw.createdAt : Date.now(),
+            updatedAt: typeof raw.updatedAt === "number" ? raw.updatedAt : Date.now(),
+          };
+          while (existing.has(entry.id)) entry.id = genId();
+          existing.add(entry.id);
+          try {
+            await saveEntry(entry);
+            state.entries.push(entry);
+            added++;
+          } catch(err){ /* skip on storage error */ }
+        }
+        state.entries.sort(sortEntries);
+        render();
+        showToast(`${added}건을 가져왔어요`);
+      },
+    });
+  } catch(err){
+    showToast("파일을 읽을 수 없어요");
+  }
+});
+
+/* ============================================================
+   Event delegation: cards
+   ============================================================ */
+$entries.addEventListener("click", (e) => {
+  // 1) 수정 버튼
+  const editBtn = e.target.closest("[data-edit]");
+  if (editBtn){
+    const entry = state.entries.find(x => x.id === editBtn.dataset.edit);
+    if (entry) openEditor(entry);
+    return;
+  }
+  // 2) "계속 읽기 / 접기" 토글
+  const moreBtn = e.target.closest("[data-more]");
+  if (moreBtn){
+    const el = $entries.querySelector(`.entry-text[data-id="${CSS.escape(moreBtn.dataset.more)}"]`);
+    if (el){
+      const expanded = el.classList.contains("is-expanded");
+      if (expanded){
+        el.classList.remove("is-expanded");
+        el.classList.add("is-clamped");
+        moreBtn.textContent = "계속 읽기";
+      } else {
+        el.classList.add("is-expanded");
+        el.classList.remove("is-clamped");
+        moreBtn.textContent = "접기";
+      }
+    }
+    return;
+  }
+  // 3) 사진 확대 (라이트박스, 좌우 넘기기)
+  const img = e.target.closest(".entry-photos img");
+  if (img){
+    const id = img.dataset.id;
+    const idx = Number(img.dataset.idx || 0);
+    const entry = state.entries.find(x => x.id === id);
+    if (entry && entry.images && entry.images[idx]) openLightbox(entry.images, idx);
+  }
+});
+
+/* ============================================================
+   Search & month filter
+   ============================================================ */
+document.getElementById("searchInput").addEventListener("input", (e) => {
+  state.search = e.target.value;
+  renderEntries();
+});
+$months.addEventListener("click", (e) => {
+  const btn = e.target.closest(".pill");
+  if (!btn) return;
+  const m = btn.dataset.month || null;
+  state.monthFilter = (m === "" || m === null) ? null : m;
+  render();
+});
+
+document.getElementById("newBtn").addEventListener("click", () => openEditor(null));
+
+/* ============================================================
+   Global shortcuts & scrim close
+   ============================================================ */
+document.addEventListener("keydown", (e) => {
+  if (e.key === "Escape"){
+    if ($lightbox.dataset.open === "true") { closeLightbox(); return; }
+    if ($confirmScrim.dataset.open === "true") { closeConfirm(); return; }
+    if ($summaryScrim.dataset.open === "true") { closeSummary(); return; }
+    if ($editorScrim.dataset.open === "true") { closeEditor(); return; }
+    if ($menu.dataset.open === "true") { setMenu(false); return; }
+  }
+  if ($lightbox.dataset.open === "true"){
+    if (e.key === "ArrowLeft") { e.preventDefault(); lbStep(-1); return; }
+    if (e.key === "ArrowRight") { e.preventDefault(); lbStep(1); return; }
+  }
+  if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === "n"){
+    e.preventDefault();
+    if ($editorScrim.dataset.open !== "true") openEditor(null);
+  }
+});
+[$editorScrim, $confirmScrim].forEach(scrim => {
+  scrim.addEventListener("click", (e) => {
+    if (e.target === scrim){
+      if (scrim === $editorScrim) closeEditor();
+      else closeConfirm();
+    }
+  });
+});
+
+/* ============================================================
+   AI 요약 — claude.ai 아티팩트면 모델 직접 호출, 아니면 복사 폴백
+   ============================================================ */
+const $summaryScrim = document.getElementById("summaryScrim");
+const $summaryBody = document.getElementById("summaryBody");
+const $summaryClose = document.getElementById("summaryClose");
+const $summaryCopy = document.getElementById("summaryCopy");
+let summaryText = "";
+
+function openSummary(){
+  $summaryScrim.dataset.open = "true";
+  $summaryScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeSummary(){
+  $summaryScrim.dataset.open = "false";
+  $summaryScrim.setAttribute("aria-hidden", "true");
+  if ($editorScrim.dataset.open !== "true" && $confirmScrim.dataset.open !== "true"){
+    document.body.classList.remove("modal-open");
+  }
+}
+
+function buildSummaryPrompt(entries){
+  const body = entries
+    .slice()
+    .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : 0))
+    .map(e => {
+      const imgs = (e.images && e.images.length) ? ` (사진 ${e.images.length}장)` : "";
+      return `■ ${e.date}${imgs}\n${(e.text || "").trim()}`;
+    })
+    .join("\n\n");
+  return (
+    `다음은 나의 작업 일지 기록이야. 한국어로 간결하게 요약해줘.\n` +
+    `- 주요하게 한 일과 성과를 불릿으로 정리\n` +
+    `- 반복되는 주제나 패턴이 있으면 짚어주기\n` +
+    `- 마지막에 한 줄 총평\n\n` +
+    `[기록 ${entries.length}건]\n${body}`
+  );
+}
+
+async function copyText(t){
+  try {
+    if (navigator.clipboard && navigator.clipboard.writeText){
+      await navigator.clipboard.writeText(t);
+      return true;
+    }
+  } catch(e){ /* ignore */ }
+  return false;
+}
+
+async function runSummary(){
+  setMenu(false);
+  const entries = filteredEntries();
+  if (!entries.length){ showToast("요약할 기록이 없어요"); return; }
+  const scope = state.monthFilter ? formatMonth(state.monthFilter) : "전체 기록";
+  const prompt = buildSummaryPrompt(entries);
+  summaryText = prompt;
+
+  openSummary();
+  $summaryCopy.hidden = true;
+  $summaryBody.innerHTML =
+    `<div class="summary-loading"><span class="spinner"></span>요약 중… (${escapeHtml(scope)} · ${entries.length}건)</div>`;
+
+  // claude.ai 아티팩트 안: 모델을 그 자리에서 호출
+  if (window.claude && typeof window.claude.complete === "function"){
+    try {
+      const out = await window.claude.complete(prompt);
+      summaryText = String(out || "").trim() || "(요약 결과가 비어 있어요)";
+      $summaryBody.textContent = summaryText;
+      $summaryCopy.hidden = false;
+      return;
+    } catch(err){
+      console.error(err);
+      // 실패 시 복사 폴백으로 진행
+    }
+  }
+
+  // 폴백: 요약용 내용을 복사 → Claude 대화창에 붙여넣기
+  summaryText = prompt;
+  const copied = await copyText(prompt);
+  $summaryBody.innerHTML =
+    `<div class="summary-note">이 화면에서는 자동 요약을 바로 쓸 수 없어요(claude.ai 아티팩트에서만 즉시 요약). ` +
+    `${copied ? "<b>아래 내용이 복사됐어요.</b>" : "아래 내용을 복사해서"} <b>Claude 대화창에 붙여넣고 보내면</b> 요약해 줍니다.</div>` +
+    `<div class="summary-pre">${escapeHtml(prompt)}</div>`;
+  $summaryCopy.hidden = false;
+  if (copied) showToast("Claude에 붙여넣을 내용을 복사했어요");
+}
+
+$summaryClose.addEventListener("click", closeSummary);
+$summaryScrim.addEventListener("click", (e) => { if (e.target === $summaryScrim) closeSummary(); });
+$summaryCopy.addEventListener("click", async () => {
+  const ok = await copyText(summaryText);
+  showToast(ok ? "복사했어요" : "복사하지 못했어요");
+});
+document.getElementById("summaryBtn").addEventListener("click", runSummary);
+
+/* ============================================================
+   Theme toggle (라이트/다크 수동 전환, 선택값 저장)
+   ============================================================ */
+const $themeBtn = document.getElementById("themeBtn");
+const THEME_KEY = "worklog:theme";
+const ICON_SUN = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="4"></circle><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"></path></svg>`;
+const ICON_MOON = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.8A9 9 0 1 1 11.2 3 7 7 0 0 0 21 12.8z"></path></svg>`;
+
+function systemDark(){
+  return !!(window.matchMedia && window.matchMedia("(prefers-color-scheme: dark)").matches);
+}
+function currentThemeAttr(){
+  return document.documentElement.getAttribute("data-theme") || "auto";
+}
+function effectiveDark(){
+  const t = currentThemeAttr();
+  return t === "dark" || (t === "auto" && systemDark());
+}
+function updateThemeIcon(){
+  // 현재 다크면 해(→라이트로), 라이트면 달(→다크로)
+  $themeBtn.innerHTML = effectiveDark() ? ICON_SUN : ICON_MOON;
+}
+function toggleTheme(){
+  const next = effectiveDark() ? "light" : "dark";
+  try { localStorage.setItem(THEME_KEY, next); } catch(e){}
+  document.documentElement.setAttribute("data-theme", next);
+  updateThemeIcon();
+}
+$themeBtn.addEventListener("click", toggleTheme);
+// auto(시스템 추종) 상태일 때 시스템 설정이 바뀌면 아이콘 갱신
+if (window.matchMedia){
+  const mq = window.matchMedia("(prefers-color-scheme: dark)");
+  const onChange = () => { if (currentThemeAttr() === "auto") updateThemeIcon(); };
+  if (mq.addEventListener) mq.addEventListener("change", onChange);
+  else if (mq.addListener) mq.addListener(onChange);
+}
+updateThemeIcon();
+
+/* ============================================================
+   Boot
+   ============================================================ */
+(async function init(){
+  try {
+    await loadAll();
+  } catch(e){
+    console.error(e);
+    showToast("저장된 기록을 불러오지 못했어요");
+  }
+  render();
+})();
+</script>
+</body>
+</html>
