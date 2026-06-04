@@ -24,6 +24,9 @@
   try{
     var t = localStorage.getItem("worklog:theme");
     if (t === "light" || t === "dark") document.documentElement.setAttribute("data-theme", t);
+    /* 비교용 미리보기: ?tone=dim → 라이트 한 톤 더 다운 */
+    if (new URLSearchParams(location.search).get("tone") === "dim")
+      document.documentElement.setAttribute("data-tone", "dim");
   }catch(e){}
 </script>
 <style>
@@ -99,6 +102,34 @@
     --shadow:0 1px 0 rgba(0,0,0,0.4);
     --shadow-lg:0 24px 60px rgba(0,0,0,0.6);
     --blur-bg:rgba(29,29,31,0.80);
+  }
+
+  /* ── 비교용 미리보기(?tone=dim): 라이트만 한 톤 더 다운 ───── */
+  :root[data-theme="light"][data-tone="dim"]{
+    --bg:#e6e2d9;
+    --surface:#efebe3;
+    --surface-2:#dcd7cb;
+    --line:#d5d0c3;
+    --line-strong:#c2bcad;
+    --blur-bg:rgba(230,226,217,0.88);
+  }
+  @media (prefers-color-scheme: light){
+    :root[data-tone="dim"]:not([data-theme="dark"]){
+      --bg:#e6e2d9;
+      --surface:#efebe3;
+      --surface-2:#dcd7cb;
+      --line:#d5d0c3;
+      --line-strong:#c2bcad;
+      --blur-bg:rgba(230,226,217,0.88);
+    }
+  }
+  :root[data-tone="dim"] body::after{
+    content:"미리보기 · 한 톤 더 다운";
+    position:fixed; left:50%; bottom:14px; transform:translateX(-50%);
+    z-index:400; background:var(--accent); color:var(--accent-text);
+    font-size:11px; letter-spacing:.04em; font-weight:500;
+    padding:5px 12px; border-radius:var(--radius); box-shadow:var(--shadow-lg);
+    pointer-events:none; white-space:nowrap;
   }
 
   *{box-sizing:border-box}
