@@ -792,6 +792,34 @@
   .trash-actions .btn{ padding:7px 12px; font-size:13px; box-shadow:none; }
   /* 확인창은 휴지통 모달 위에 표시 */
   #confirmScrim{ z-index:150; }
+  /* ── 화면 잠금 (PIN·생체인증) ───────────────────────────────── */
+  .lock-scrim{
+    position:fixed; inset:0; z-index:1100;
+    display:none; align-items:center; justify-content:center;
+    padding:24px; background:var(--bg);
+  }
+  .lock-scrim[data-open="true"]{ display:flex; }
+  .lock-card{ width:100%; max-width:320px; text-align:center; color:var(--text); display:flex; flex-direction:column; align-items:center; gap:10px; }
+  .lock-icon{ font-size:34px; }
+  .lock-card h2{ margin:0; font-size:20px; }
+  .lock-sub{ margin:0 0 6px; color:var(--muted); font-size:13px; line-height:1.5; }
+  .lock-dots{ display:flex; gap:14px; height:18px; align-items:center; justify-content:center; margin:6px 0; }
+  .lock-dots .dot{ width:13px; height:13px; border-radius:50%; border:2px solid var(--line-strong); background:transparent; transition:background-color .12s, border-color .12s; }
+  .lock-dots .dot.on{ background:var(--accent); border-color:var(--accent); }
+  .lock-pad{ display:grid; grid-template-columns:repeat(3, 1fr); gap:14px; margin:4px 0; }
+  .pad-key{ width:64px; height:64px; border-radius:50%; border:none; background:var(--surface-2); color:var(--text); font-size:24px; font-weight:500; display:inline-flex; align-items:center; justify-content:center; transition:background-color .12s ease, transform .08s ease; }
+  .pad-key:hover{ background:var(--line); }
+  .pad-key:active{ transform:scale(0.93); }
+  .pad-key.empty{ background:transparent; pointer-events:none; }
+  .pad-key.bio{ font-size:26px; }
+  .lock-msg{ min-height:18px; font-size:13px; color:var(--muted); line-height:1.5; }
+  .lock-msg.err{ color:#d9534f; }
+  .lock-row{ display:flex; align-items:center; justify-content:space-between; gap:12px; padding:13px 2px; border-bottom:1px solid var(--line); }
+  .lock-row b{ font-weight:600; }
+  .lock-state{ display:block; font-size:12.5px; color:var(--muted); margin-top:2px; }
+  .pin-set{ display:flex; flex-direction:column; gap:8px; padding:12px 0; }
+  .pin-set input{ font:inherit; font-size:16px; background:var(--surface-2); border:1px solid transparent; border-radius:10px; padding:11px 12px; outline:none; color:var(--text); }
+  .pin-set input:focus{ border-color:var(--accent); }
   /* 비밀번호 일치 안내 */
   .auth-hint{ flex-direction:column; font-size:12.5px; line-height:1.4; margin-top:-4px; color:var(--muted); min-height:1px; }
   .auth-hint:empty{ display:none; }
@@ -826,6 +854,19 @@
       <button class="auth-btn" id="authToggleBtn" type="button">회원가입</button>
     </form>
   </div>
+  <div class="lock-scrim" id="lockScrim" data-open="false" aria-hidden="true">
+    <div class="lock-card">
+      <div class="lock-icon">🔒</div>
+      <h2>작업일지 잠금</h2>
+      <p class="lock-sub" id="lockSub">PIN 또는 생체인증으로 잠금을 해제하세요.</p>
+      <div class="lock-dots" id="lockDots"></div>
+      <div class="lock-pad" id="lockPad"></div>
+      <button type="button" class="auth-btn" id="lockBioBtn" style="display:none">☝ 생체인증으로 잠금 해제</button>
+      <div class="lock-msg" id="lockMsg" role="status" aria-live="polite"></div>
+      <button type="button" class="auth-link" id="lockLogoutBtn">다른 계정으로 로그인</button>
+    </div>
+  </div>
+
   <main class="page">
     <header class="top">
       <h1 class="title">성민의 작업일지</h1>
@@ -844,6 +885,7 @@
           <button id="aboutBtn" role="menuitem">작업 일지에 대하여</button>
           <div class="divider"></div>
           <button id="trashBtn" role="menuitem">🗑 휴지통</button>
+          <button id="lockSettingsBtn" role="menuitem" style="display:none">🔒 화면 잠금</button>
           <div class="divider" id="logoutDivider" style="display:none"></div>
           <button id="logoutBtn" role="menuitem" style="display:none">로그아웃</button>
         </div>
@@ -927,6 +969,34 @@
         <div class="right" style="margin-left:auto">
           <button class="btn ghost" id="confirmCancel">취소</button>
           <button class="btn" id="confirmOk">확인</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <!-- Lock Settings Modal -->
+  <div class="scrim" id="lockSettingsScrim" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="lockSetTitle" style="max-width:460px">
+      <h2 id="lockSetTitle">🔒 화면 잠금</h2>
+      <p class="summary-note">앱을 열 때 PIN·생체인증으로 잠가요. (이 기기에만 저장되는 잠금이에요.)</p>
+      <div class="lock-row">
+        <div><b>PIN</b><span class="lock-state" id="pinStatus">사용 안 함</span></div>
+        <button class="btn ghost" type="button" id="pinToggleBtn">PIN 설정</button>
+      </div>
+      <div class="pin-set" id="pinSetWrap" style="display:none">
+        <input id="pinInput1" type="password" inputmode="numeric" maxlength="6" placeholder="새 PIN (숫자 4~6자리)" autocomplete="off" />
+        <input id="pinInput2" type="password" inputmode="numeric" maxlength="6" placeholder="PIN 다시 입력" autocomplete="off" />
+        <button class="btn" type="button" id="pinSaveBtn">PIN 저장</button>
+      </div>
+      <div class="lock-row">
+        <div><b>생체인증</b><span class="lock-state" id="bioStatus">사용 안 함</span></div>
+        <button class="btn ghost" type="button" id="bioToggleBtn">생체인증 사용</button>
+      </div>
+      <div class="lock-msg" id="lockSetMsg" role="status" aria-live="polite"></div>
+      <div class="modal-actions">
+        <button class="btn" type="button" id="lockNowBtn">지금 잠그기</button>
+        <div class="right" style="margin-left:auto">
+          <button class="btn ghost" type="button" id="lockSettingsClose">닫기</button>
         </div>
       </div>
     </div>
@@ -1355,6 +1425,8 @@ async function startApp(user){
   const ld = document.getElementById("logoutDivider");
   if (ld) ld.style.display = "";
   if ($logoutBtn) $logoutBtn.style.display = "";
+  const lsb = document.getElementById("lockSettingsBtn");
+  if (lsb) lsb.style.display = "";
   try { await migrateLocalToCloud(); } catch(e){ console.error(e); }
   try { await loadAll(); } catch(e){ console.error(e); showToast("기록을 불러오지 못했어요"); }
   render();
@@ -2516,6 +2588,229 @@ if (window.matchMedia){
 updateThemeIcon();
 
 /* ============================================================
+   화면 잠금 (PIN · 생체인증) — 로컬 기기 잠금
+   - Supabase 세션은 유지하되, 앱을 열 때 PIN/생체로 화면 잠금 해제
+   - 데이터 접근 권한이 아니라 '화면 가림(개인정보 보호)' 용도
+   ============================================================ */
+const PIN_KEY = "worklog:pin";        // {salt, hash, len}
+const BIO_KEY = "worklog:biometric";  // {credentialId}
+
+function getPin(){ try { return JSON.parse(localStorage.getItem(PIN_KEY) || "null"); } catch(_){ return null; } }
+function getBio(){ try { return JSON.parse(localStorage.getItem(BIO_KEY) || "null"); } catch(_){ return null; } }
+function lockEnabled(){ return !!(getPin() || getBio()); }
+
+function randHex(n){ return [...crypto.getRandomValues(new Uint8Array(n))].map(b=>b.toString(16).padStart(2,"0")).join(""); }
+async function hashPin(pin, salt){
+  const buf = await crypto.subtle.digest("SHA-256", new TextEncoder().encode(salt + ":" + pin));
+  return [...new Uint8Array(buf)].map(b=>b.toString(16).padStart(2,"0")).join("");
+}
+function bufToB64(buf){ const a = new Uint8Array(buf); let s=""; for (const x of a) s += String.fromCharCode(x); return btoa(s); }
+function b64ToBuf(b64){ const s = atob(b64); const a = new Uint8Array(s.length); for (let i=0;i<s.length;i++) a[i]=s.charCodeAt(i); return a.buffer; }
+
+let pendingUser = null; // 잠금 해제 후 진입할 사용자
+let pinBuffer = "";
+
+const $lockScrim  = document.getElementById("lockScrim");
+const $lockSub    = document.getElementById("lockSub");
+const $lockDots   = document.getElementById("lockDots");
+const $lockPad    = document.getElementById("lockPad");
+const $lockMsg    = document.getElementById("lockMsg");
+const $lockBioBtn = document.getElementById("lockBioBtn");
+
+function lockMsg(m, err){ if (!$lockMsg) return; $lockMsg.textContent = m || ""; $lockMsg.className = "lock-msg" + (err ? " err" : ""); }
+function renderLockDots(len){
+  let html = "";
+  for (let i=0;i<len;i++) html += `<span class="dot ${i<pinBuffer.length?"on":""}"></span>`;
+  $lockDots.innerHTML = html;
+}
+function renderLockPad(){
+  const keys = ["1","2","3","4","5","6","7","8","9", getBio()?"bio":"", "0", "del"];
+  $lockPad.innerHTML = keys.map(k=>{
+    if (k === "")   return `<span class="pad-key empty"></span>`;
+    if (k === "del")return `<button type="button" class="pad-key" data-k="del" aria-label="지우기">⌫</button>`;
+    if (k === "bio")return `<button type="button" class="pad-key bio" data-k="bio" aria-label="생체인증">☝</button>`;
+    return `<button type="button" class="pad-key" data-k="${k}">${k}</button>`;
+  }).join("");
+}
+function showLock(user){
+  pendingUser = user;
+  pinBuffer = "";
+  const pin = getPin();
+  const len = pin ? (pin.len || 4) : 4;
+  $lockPad.style.display  = pin ? "" : "none";
+  $lockDots.style.display = pin ? "" : "none";
+  renderLockPad();
+  renderLockDots(len);
+  $lockBioBtn.style.display = getBio() ? "" : "none";
+  $lockSub.textContent = pin && getBio() ? "PIN 또는 생체인증으로 잠금을 해제하세요."
+    : pin ? "PIN을 입력해 잠금을 해제하세요." : "생체인증으로 잠금을 해제하세요.";
+  lockMsg("");
+  $lockScrim.dataset.open = "true";
+  $lockScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function hideLock(){
+  $lockScrim.dataset.open = "false";
+  $lockScrim.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+}
+async function unlockSuccess(){
+  hideLock();
+  const u = pendingUser; pendingUser = null;
+  await startApp(u);
+}
+async function tryPin(){
+  const pin = getPin();
+  if (!pin) return;
+  const h = await hashPin(pinBuffer, pin.salt);
+  if (h === pin.hash){ await unlockSuccess(); }
+  else {
+    pinBuffer = "";
+    renderLockDots(pin.len || 4);
+    lockMsg("PIN이 일치하지 않아요", true);
+    if (navigator.vibrate) navigator.vibrate(120);
+  }
+}
+if ($lockPad) $lockPad.addEventListener("click", async (e) => {
+  const btn = e.target.closest("[data-k]");
+  if (!btn) return;
+  const k = btn.dataset.k;
+  const pin = getPin();
+  const len = pin ? (pin.len || 4) : 4;
+  if (k === "del"){ pinBuffer = pinBuffer.slice(0, -1); renderLockDots(len); return; }
+  if (k === "bio"){ doBioUnlock(); return; }
+  if (pinBuffer.length >= len) return;
+  pinBuffer += k;
+  renderLockDots(len);
+  lockMsg("");
+  if (pinBuffer.length === len) await tryPin();
+});
+async function doBioUnlock(){
+  try {
+    lockMsg("생체인증 확인 중…");
+    const ok = await unlockBiometric();
+    if (ok) await unlockSuccess();
+    else lockMsg("생체인증에 실패했어요", true);
+  } catch(err){
+    console.warn(err);
+    lockMsg("생체인증을 사용할 수 없어요. PIN으로 해제하세요.", true);
+  }
+}
+if ($lockBioBtn) $lockBioBtn.addEventListener("click", doBioUnlock);
+const $lockLogoutBtn = document.getElementById("lockLogoutBtn");
+if ($lockLogoutBtn) $lockLogoutBtn.addEventListener("click", async () => {
+  try { if (sb) await sb.auth.signOut(); } catch(_){}
+  location.reload();
+});
+
+/* 생체인증 (WebAuthn) */
+async function biometricSupported(){
+  if (!window.PublicKeyCredential) return false;
+  try { return await PublicKeyCredential.isUserVerifyingPlatformAuthenticatorAvailable(); }
+  catch(_){ return false; }
+}
+async function enableBiometric(){
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const userId = crypto.getRandomValues(new Uint8Array(16));
+  const cred = await navigator.credentials.create({
+    publicKey: {
+      challenge,
+      rp: { name: "성민의 작업일지" },
+      user: { id: userId, name: (currentUser && currentUser.email) || "worklog", displayName: "작업일지" },
+      pubKeyCredParams: [{ type:"public-key", alg:-7 }, { type:"public-key", alg:-257 }],
+      authenticatorSelection: { authenticatorAttachment:"platform", userVerification:"required" },
+      timeout: 60000, attestation: "none",
+    },
+  });
+  if (!cred) throw new Error("등록 취소됨");
+  localStorage.setItem(BIO_KEY, JSON.stringify({ credentialId: bufToB64(cred.rawId) }));
+}
+async function unlockBiometric(){
+  const meta = getBio();
+  if (!meta) throw new Error("등록된 생체인증이 없어요");
+  const challenge = crypto.getRandomValues(new Uint8Array(32));
+  const assertion = await navigator.credentials.get({
+    publicKey: {
+      challenge,
+      allowCredentials: [{ type:"public-key", id: b64ToBuf(meta.credentialId) }],
+      userVerification: "required",
+      timeout: 60000,
+    },
+  });
+  return !!assertion;
+}
+
+/* 잠금 설정 모달 */
+const $lockSetScrim  = document.getElementById("lockSettingsScrim");
+const $pinStatus     = document.getElementById("pinStatus");
+const $bioStatus     = document.getElementById("bioStatus");
+const $pinSetWrap    = document.getElementById("pinSetWrap");
+const $pinInput1     = document.getElementById("pinInput1");
+const $pinInput2     = document.getElementById("pinInput2");
+const $pinSaveBtn    = document.getElementById("pinSaveBtn");
+const $pinToggleBtn  = document.getElementById("pinToggleBtn");
+const $bioToggleBtn  = document.getElementById("bioToggleBtn");
+const $lockSetMsg    = document.getElementById("lockSetMsg");
+const $lockNowBtn    = document.getElementById("lockNowBtn");
+
+function lockSetMsg(m, err){ if (!$lockSetMsg) return; $lockSetMsg.textContent = m || ""; $lockSetMsg.className = "lock-msg" + (err ? " err" : ""); }
+function refreshLockSettings(){
+  const hasPin = !!getPin(), hasBio = !!getBio();
+  $pinStatus.textContent = hasPin ? "설정됨" : "사용 안 함";
+  $pinToggleBtn.textContent = hasPin ? "PIN 해제" : "PIN 설정";
+  $bioStatus.textContent = hasBio ? "사용 중" : "사용 안 함";
+  $bioToggleBtn.textContent = hasBio ? "생체인증 해제" : "생체인증 사용";
+  $pinSetWrap.style.display = "none";
+  $pinInput1.value = ""; $pinInput2.value = "";
+  lockSetMsg("");
+  biometricSupported().then(ok => {
+    if (!ok && !hasBio){ $bioToggleBtn.disabled = true; $bioStatus.textContent = "이 기기 미지원"; }
+    else $bioToggleBtn.disabled = false;
+  });
+}
+function openLockSettings(){ refreshLockSettings(); $lockSetScrim.dataset.open = "true"; $lockSetScrim.setAttribute("aria-hidden","false"); document.body.classList.add("modal-open"); }
+function closeLockSettings(){ $lockSetScrim.dataset.open = "false"; $lockSetScrim.setAttribute("aria-hidden","true"); document.body.classList.remove("modal-open"); }
+
+document.getElementById("lockSettingsBtn").addEventListener("click", () => { setMenu(false); openLockSettings(); });
+document.getElementById("lockSettingsClose").addEventListener("click", closeLockSettings);
+$lockSetScrim.addEventListener("click", (e) => { if (e.target === $lockSetScrim) closeLockSettings(); });
+
+$pinToggleBtn.addEventListener("click", () => {
+  if (getPin()){
+    openConfirm({ title:"PIN 해제", message:"PIN 잠금을 해제할까요?", okText:"해제", danger:true,
+      onOk: () => { localStorage.removeItem(PIN_KEY); refreshLockSettings(); showToast("PIN을 해제했어요"); } });
+  } else {
+    $pinSetWrap.style.display = ""; lockSetMsg(""); $pinInput1.focus();
+  }
+});
+$pinSaveBtn.addEventListener("click", async () => {
+  const p1 = $pinInput1.value.trim(), p2 = $pinInput2.value.trim();
+  if (!/^\d{4,6}$/.test(p1)){ lockSetMsg("PIN은 숫자 4~6자리예요", true); return; }
+  if (p1 !== p2){ lockSetMsg("PIN이 일치하지 않아요", true); return; }
+  const salt = randHex(8);
+  const hash = await hashPin(p1, salt);
+  localStorage.setItem(PIN_KEY, JSON.stringify({ salt, hash, len: p1.length }));
+  refreshLockSettings(); showToast("PIN을 설정했어요");
+});
+$bioToggleBtn.addEventListener("click", async () => {
+  if (getBio()){
+    openConfirm({ title:"생체인증 해제", message:"생체인증 잠금을 해제할까요?", okText:"해제", danger:true,
+      onOk: () => { localStorage.removeItem(BIO_KEY); refreshLockSettings(); showToast("생체인증을 해제했어요"); } });
+  } else {
+    try {
+      lockSetMsg("생체인증 등록 중…");
+      await enableBiometric();
+      refreshLockSettings(); showToast("생체인증을 등록했어요");
+    } catch(err){ console.warn(err); lockSetMsg("생체인증 등록에 실패했어요", true); }
+  }
+});
+$lockNowBtn.addEventListener("click", () => {
+  if (!lockEnabled()){ lockSetMsg("먼저 PIN이나 생체인증을 설정하세요", true); return; }
+  closeLockSettings();
+  showLock(currentUser);
+});
+
+/* ============================================================
    Boot
    ============================================================ */
 (async function init(){
@@ -2539,7 +2834,12 @@ updateThemeIcon();
     try {
       const { data } = await sb.auth.getSession();
       if (data && data.session && data.session.user){
-        await startApp(data.session.user);
+        if (lockEnabled()){
+          render();                 // 데이터는 잠금 해제 후 로드 (화면은 잠금이 가림)
+          showLock(data.session.user);
+        } else {
+          await startApp(data.session.user);
+        }
       } else {
         showLogin();
         render();
