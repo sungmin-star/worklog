@@ -10,7 +10,7 @@
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
 <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<meta name="theme-color" content="#f5f2ea" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#f6f4ef" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#1d1d1f" media="(prefers-color-scheme: dark)" />
 <!-- PWA: 홈 화면 설치 + 오프라인 -->
 <link rel="manifest" href="./manifest.json" />
@@ -34,24 +34,24 @@
 
   /* ── L'Heure Bleue Light : 크림 + 네이비 + 골드 ───────────── */
   :root{
-    --bg:#faf7f0;
+    --bg:#f6f4ef;
     --surface:#ffffff;
-    --surface-2:#f1ece1;
-    --text:#1a1a1a;
-    --muted:#726c62;
-    --line:#e0ddd5;
-    --line-strong:#cfcabc;
+    --surface-2:#ebe8e1;
+    --text:#1e1e1e;
+    --muted:#76746e;
+    --line:#e4e1da;
+    --line-strong:#d3cfc6;
     --accent:#c9a961;
     --accent-hover:#8b7355;
-    --accent-text:#0f1419;
-    --accent-soft:rgba(201,169,97,0.16);
+    --accent-text:#1e1e1e;
+    --accent-soft:rgba(201,169,97,0.15);
     --bleue:#1e3a5f;
     --ok:#5c8a5a;
     --danger:#b4453a;
-    --shadow:0 1px 0 rgba(15,20,25,0.04);
-    --shadow-lg:0 24px 60px rgba(15,20,25,0.16);
+    --shadow:0 1px 0 rgba(20,20,22,0.04);
+    --shadow-lg:0 24px 60px rgba(20,20,22,0.14);
     --ring:0 0 0 3px var(--accent-soft);
-    --blur-bg:rgba(250,247,240,0.82);
+    --blur-bg:rgba(246,244,239,0.82);
     --radius:4px;
     --radius-sm:3px;
     --display:"Cormorant Garamond", "EB Garamond", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", Georgia, serif;
@@ -133,22 +133,29 @@
 
   /* ---------- Header ---------- */
   header.top{
+    position:relative;
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:center;
     gap:16px;
+    min-height:46px;
     margin-bottom:10px;
   }
   h1.title{ margin:0; line-height:0; }
   .brand-logo{
     display:block;
-    width:158px;
-    max-width:48vw;
+    width:196px;
+    max-width:58%;
     height:auto;
     border-radius:12px;
   }
-  @media (max-width:600px){ .brand-logo{ width:132px; } }
-  .header-actions{ display:flex; align-items:center; gap:8px; }
+  @media (max-width:600px){ .brand-logo{ width:164px; } }
+  .header-actions{
+    position:absolute;
+    right:0; top:50%;
+    transform:translateY(-50%);
+    display:flex; align-items:center; gap:8px;
+  }
   .menu-wrap{ position:relative; }
   .icon-btn{
     width:38px; height:38px;
