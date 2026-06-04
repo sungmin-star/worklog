@@ -6,6 +6,9 @@
 <title>L'Heure Bleue</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<link rel="preconnect" href="https://fonts.googleapis.com" />
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Cormorant+Garamond:wght@300;400;500;600&display=swap" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta name="theme-color" content="#f5f2ea" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#14212f" media="(prefers-color-scheme: dark)" />
@@ -31,68 +34,71 @@
 
   /* ── L'Heure Bleue Light : 크림 + 네이비 + 골드 ───────────── */
   :root{
-    --bg:#f5f2ea;
-    --surface:#fffefb;
-    --surface-2:#ece6d9;
-    --text:#1f3354;
-    --muted:#717c8d;
-    --line:#e2dccd;
-    --line-strong:#cec5b2;
-    --accent:#bf9233;
-    --accent-hover:#a87c26;
-    --accent-text:#1f3354;
-    --accent-soft:rgba(191,146,51,0.16);
+    --bg:#faf7f0;
+    --surface:#ffffff;
+    --surface-2:#f1ece1;
+    --text:#1a1a1a;
+    --muted:#726c62;
+    --line:#e0ddd5;
+    --line-strong:#cfcabc;
+    --accent:#c9a961;
+    --accent-hover:#8b7355;
+    --accent-text:#0f1419;
+    --accent-soft:rgba(201,169,97,0.16);
+    --bleue:#1e3a5f;
     --ok:#5c8a5a;
-    --danger:#c0473a;
-    --shadow:0 1px 2px rgba(31,51,84,0.05), 0 8px 28px rgba(31,51,84,0.08);
-    --shadow-lg:0 18px 56px rgba(20,33,61,0.16);
-    --ring:0 0 0 4px var(--accent-soft);
-    --blur-bg:rgba(245,242,234,0.78);
-    --radius:18px;
-    --radius-sm:12px;
-    --display:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
+    --danger:#b4453a;
+    --shadow:0 1px 0 rgba(15,20,25,0.04);
+    --shadow-lg:0 24px 60px rgba(15,20,25,0.16);
+    --ring:0 0 0 3px var(--accent-soft);
+    --blur-bg:rgba(250,247,240,0.82);
+    --radius:4px;
+    --radius-sm:3px;
+    --display:"Cormorant Garamond", "EB Garamond", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", Georgia, serif;
     --sans:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
   }
 
   /* ── L'Heure Bleue Dark : 딥 네이비(블루아워) + 골드 ───────── */
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#14212f;
-      --surface:#1d2d40;
-      --surface-2:#26384e;
-      --text:#ece5d6;
-      --muted:#95a1b4;
-      --line:#2d3f55;
-      --line-strong:#41566f;
-      --accent:#d4a647;
-      --accent-hover:#e2b75e;
-      --accent-text:#14212f;
-      --accent-soft:rgba(212,166,71,0.20);
+      --bg:#0f1419;
+      --surface:#19222e;
+      --surface-2:#222d3c;
+      --text:#faf7f0;
+      --muted:#8fa5bc;
+      --line:#273547;
+      --line-strong:#3a4a5f;
+      --accent:#cdae6a;
+      --accent-hover:#e8d5a0;
+      --accent-text:#0f1419;
+      --accent-soft:rgba(205,174,106,0.20);
+      --bleue:#faf7f0;
       --ok:#7fb47c;
       --danger:#e0685b;
-      --shadow:0 1px 2px rgba(0,0,0,0.45), 0 10px 32px rgba(0,0,0,0.5);
-      --shadow-lg:0 18px 56px rgba(0,0,0,0.6);
-      --blur-bg:rgba(20,33,47,0.74);
+      --shadow:0 1px 0 rgba(0,0,0,0.4);
+      --shadow-lg:0 24px 60px rgba(0,0,0,0.6);
+      --blur-bg:rgba(15,20,25,0.76);
     }
   }
   /* 사용자가 직접 다크를 선택한 경우(시스템 설정과 무관) */
   :root[data-theme="dark"]{
-    --bg:#14212f;
-    --surface:#1d2d40;
-    --surface-2:#26384e;
-    --text:#ece5d6;
-    --muted:#95a1b4;
-    --line:#2d3f55;
-    --line-strong:#41566f;
-    --accent:#d4a647;
-    --accent-hover:#e2b75e;
-    --accent-text:#14212f;
-    --accent-soft:rgba(212,166,71,0.20);
+    --bg:#0f1419;
+    --surface:#19222e;
+    --surface-2:#222d3c;
+    --text:#faf7f0;
+    --muted:#8fa5bc;
+    --line:#273547;
+    --line-strong:#3a4a5f;
+    --accent:#cdae6a;
+    --accent-hover:#e8d5a0;
+    --accent-text:#0f1419;
+    --accent-soft:rgba(205,174,106,0.20);
+    --bleue:#faf7f0;
     --ok:#7fb47c;
     --danger:#e0685b;
-    --shadow:0 1px 2px rgba(0,0,0,0.45), 0 10px 32px rgba(0,0,0,0.5);
-    --shadow-lg:0 18px 56px rgba(0,0,0,0.6);
-    --blur-bg:rgba(20,33,47,0.74);
+    --shadow:0 1px 0 rgba(0,0,0,0.4);
+    --shadow-lg:0 24px 60px rgba(0,0,0,0.6);
+    --blur-bg:rgba(15,20,25,0.76);
   }
 
   *{box-sizing:border-box}
@@ -113,7 +119,7 @@
 
   button{ font-family:inherit; color:inherit; cursor:pointer; }
   input, textarea{ font-family:inherit; color:inherit; }
-  ::selection{ background:var(--accent-soft); color:var(--text); }
+  ::selection{ background:var(--accent); color:var(--accent-text); }
 
   /* ---------- Layout ---------- */
   .page{
@@ -212,7 +218,7 @@
     display:flex; align-items:center;
     background:var(--surface-2);
     border:1px solid transparent;
-    border-radius:12px;
+    border-radius:var(--radius);
     padding:10px 14px 10px 40px;
     position:relative;
     transition:border-color .18s ease, box-shadow .18s ease, background-color .18s ease;
@@ -235,12 +241,12 @@
     border:1px solid var(--line);
     background:var(--surface);
     color:var(--text);
-    border-radius:980px;
+    border-radius:var(--radius);
     padding:10px 20px;
     font-size:15px;
     font-weight:500;
     letter-spacing:-0.01em;
-    box-shadow:var(--shadow);
+    box-shadow:none;
     transition:background-color .18s ease, transform .1s ease, box-shadow .18s ease;
     white-space:nowrap;
   }
@@ -278,7 +284,7 @@
     flex:none;
     border:none;
     background:var(--surface-2);
-    border-radius:980px;
+    border-radius:var(--radius);
     padding:7px 15px;
     font-size:13px;
     font-weight:500;
@@ -290,7 +296,7 @@
   .pill[aria-pressed="true"]{
     background:var(--surface);
     color:var(--text);
-    box-shadow:var(--shadow);
+    box-shadow:inset 0 0 0 1px var(--line-strong);
   }
   .pill[aria-pressed="true"]:hover{ background:var(--surface); }
 
@@ -307,14 +313,14 @@
 
   .entry{
     background:var(--surface);
-    border:none;
+    border:1px solid var(--line);
     border-radius:var(--radius);
-    padding:22px 24px;
-    box-shadow:var(--shadow);
+    padding:24px 26px;
+    box-shadow:none;
     animation:fadeIn .35s cubic-bezier(.16,1,.3,1) both;
-    transition:box-shadow .22s ease;
+    transition:border-color .4s ease-out;
   }
-  .entry:hover{ box-shadow:var(--shadow-lg); }
+  .entry:hover{ border-color:var(--accent); }
   .entry:hover .entry-edit{ opacity:1; }
 
   .entry-head{
@@ -453,8 +459,8 @@
   .scrim[data-open="true"]{ display:flex; }
   .modal{
     background:var(--surface);
-    border:none;
-    border-radius:22px;
+    border:1px solid var(--line);
+    border-radius:var(--radius);
     width:100%;
     max-width:580px;
     padding:30px 28px 24px;
