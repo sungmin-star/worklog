@@ -6,6 +6,7 @@
 <title>성민의 작업일지</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#1f1b17" media="(prefers-color-scheme: dark)" />
 <script>
@@ -705,8 +706,57 @@
     clip:rect(0,0,0,0); white-space:nowrap; border:0;
   }
 </style>
+<style>
+  /* ── 로그인 오버레이 ───────────────────────────────────────── */
+  .auth-scrim{
+    position:fixed; inset:0; z-index:1000;
+    display:none; align-items:center; justify-content:center;
+    padding:20px; background:rgba(0,0,0,.45); backdrop-filter:blur(4px);
+  }
+  .auth-scrim[data-open="true"]{ display:flex; }
+  .auth-card{
+    width:100%; max-width:360px;
+    background:var(--surface); color:var(--text);
+    border-radius:18px; padding:28px 24px;
+    box-shadow:0 20px 60px rgba(0,0,0,.28);
+    display:flex; flex-direction:column; gap:12px;
+  }
+  .auth-card h2{ margin:0; font-size:21px; }
+  .auth-sub{ margin:0 0 6px; color:var(--muted); font-size:13px; line-height:1.5; }
+  .auth-field{ display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--muted); }
+  .auth-field input{
+    font:inherit; font-size:16px; color:var(--text);
+    background:var(--surface-2); border:1px solid transparent;
+    border-radius:10px; padding:11px 12px; outline:none;
+  }
+  .auth-field input:focus{ border-color:var(--accent, #c08a4a); }
+  .auth-msg{ min-height:18px; font-size:13px; color:var(--muted); line-height:1.5; }
+  .auth-msg.err{ color:#d9534f; }
+  .auth-btn{
+    font:inherit; font-size:15px;
+    border:1px solid var(--surface-2); background:var(--surface-2); color:var(--text);
+    border-radius:10px; padding:11px; cursor:pointer;
+  }
+  .auth-btn.primary{ background:var(--text); color:var(--surface); border-color:var(--text); font-weight:600; }
+  .auth-btn:disabled{ opacity:.5; cursor:default; }
+</style>
 </head>
 <body>
+  <div class="auth-scrim" id="authScrim" data-open="false" aria-hidden="true">
+    <form class="auth-card" id="authCard" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <h2 id="authTitle">작업일지 로그인</h2>
+      <p class="auth-sub">기기 간 동기화를 위해 로그인하세요. 처음이라면 회원가입 후 메일의 확인 링크를 한 번 눌러주세요.</p>
+      <label class="auth-field">이메일
+        <input id="authEmail" type="email" autocomplete="username" inputmode="email" placeholder="you@example.com" />
+      </label>
+      <label class="auth-field">비밀번호
+        <input id="authPassword" type="password" autocomplete="current-password" placeholder="비밀번호 (6자 이상)" />
+      </label>
+      <div class="auth-msg" id="authMsg" role="status" aria-live="polite"></div>
+      <button class="auth-btn primary" id="authLoginBtn" type="submit">로그인</button>
+      <button class="auth-btn" id="authSignupBtn" type="button">회원가입</button>
+    </form>
+  </div>
   <main class="page">
     <header class="top">
       <h1 class="title">성민의 작업일지</h1>
@@ -723,6 +773,8 @@
           <button id="importBtn" role="menuitem">백업 가져오기</button>
           <div class="divider"></div>
           <button id="aboutBtn" role="menuitem">작업 일지에 대하여</button>
+          <div class="divider" id="logoutDivider" style="display:none"></div>
+          <button id="logoutBtn" role="menuitem" style="display:none">로그아웃</button>
         </div>
       </div>
       </div>
@@ -834,7 +886,7 @@
    - window.storage (Claude.ai artifact) 우선, 없으면 localStorage 폴백
    - get / set / delete / list 4종 메서드 공통 인터페이스
    ============================================================ */
-const storage = (function(){
+let storage = (function(){
   const hasArtifact = typeof window !== "undefined"
     && typeof window.storage === "object"
     && window.storage !== null
@@ -884,6 +936,235 @@ const state = {
   editing: null,       // entry being edited, or null when creating
   draftImages: [],     // dataURLs in editor
 };
+
+/* ============================================================
+   Cloud sync (Supabase)
+   - 로그인하면 localStorage 대신 Supabase 를 저장소로 사용 → 기기 간 동기화
+   - 이미지는 비공개 Storage 버킷에 업로드, 화면에는 서명 URL 로 표시
+   ============================================================ */
+const SUPA_URL = "https://qoarpcpcdwflvxenkmcy.supabase.co";
+const SUPA_KEY = "sb_publishable_A8JGt7mSDMJsPXFW-dlPGQ_ZtrN3KSH";
+const BUCKET   = "worklog-images";
+const SIGN_TTL = 60 * 60 * 24; // 서명 URL 유효시간(초) = 1일
+
+const sb = (typeof window !== "undefined" && window.supabase && SUPA_URL)
+  ? window.supabase.createClient(SUPA_URL, SUPA_KEY, {
+      auth: { persistSession: true, autoRefreshToken: true, storageKey: "worklog-auth" },
+    })
+  : null;
+
+let currentUser = null;
+const signedUrlCache = new Map(); // storage path -> 서명 URL
+function isCloud(){ return storage && storage.kind === "supabase"; }
+
+function dataURLtoBlob(dataUrl){
+  const comma = dataUrl.indexOf(",");
+  const head = dataUrl.slice(0, comma);
+  const b64 = dataUrl.slice(comma + 1);
+  const mime = (head.match(/data:(.*?);/) || [, "image/jpeg"])[1];
+  const bin = atob(b64);
+  const arr = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) arr[i] = bin.charCodeAt(i);
+  return new Blob([arr], { type: mime });
+}
+
+function isStoragePath(s){
+  return typeof s === "string" && !s.startsWith("data:") && !/^https?:\/\//.test(s);
+}
+
+// 화면에 그릴 실제 src: Storage path 면 캐시된 서명 URL, 아니면 원본(dataURL/URL)
+function imgSrc(src){
+  if (isStoragePath(src)) return signedUrlCache.get(src) || "";
+  return src;
+}
+
+async function uploadImage(entryId, idx, dataUrl){
+  const blob = dataURLtoBlob(dataUrl);
+  const ext = (blob.type.split("/")[1] || "jpg").replace("jpeg", "jpg");
+  const path = `${currentUser.id}/${entryId}/${idx}-${Date.now()}.${ext}`;
+  const { error } = await sb.storage.from(BUCKET).upload(path, blob, { contentType: blob.type, upsert: true });
+  if (error) throw error;
+  return path;
+}
+
+// dataURL 들을 Storage 에 올리고 path 배열로 치환 (이미 path/URL 이면 그대로 둠)
+async function prepareImagesForSave(entryId, images){
+  if (!isCloud()) return images;
+  const out = [];
+  for (let i = 0; i < images.length; i++){
+    const src = images[i];
+    if (typeof src === "string" && src.startsWith("data:")) out.push(await uploadImage(entryId, i, src));
+    else out.push(src);
+  }
+  return out;
+}
+
+// 엔트리들의 Storage path 에 대한 서명 URL 을 미리 만들어 캐시
+async function ensureSignedUrls(entries){
+  if (!isCloud()) return;
+  const need = [];
+  for (const e of entries){
+    for (const src of (e.images || [])){
+      if (isStoragePath(src) && !signedUrlCache.has(src)) need.push(src);
+    }
+  }
+  if (!need.length) return;
+  const uniq = [...new Set(need)];
+  const { data, error } = await sb.storage.from(BUCKET).createSignedUrls(uniq, SIGN_TTL);
+  if (error){ console.error(error); return; }
+  for (const item of (data || [])){
+    if (item && item.signedUrl && item.path) signedUrlCache.set(item.path, item.signedUrl);
+  }
+}
+
+// localStorage(get/set/delete/list) 와 동일 인터페이스의 Supabase 백엔드
+function makeSupabaseStorage(){
+  const cache = new Map(); // id -> entry obj
+  let loaded = false;
+  async function ensureLoaded(){
+    if (loaded) return;
+    const { data, error } = await sb.from("entries").select("*");
+    if (error) throw error;
+    cache.clear();
+    for (const row of (data || [])){
+      cache.set(row.id, {
+        id: row.id,
+        date: row.date,
+        text: row.text || "",
+        images: Array.isArray(row.images) ? row.images : [],
+        createdAt: Number(row.created_at) || 0,
+        updatedAt: Number(row.updated_at) || 0,
+      });
+    }
+    loaded = true;
+  }
+  return {
+    kind: "supabase",
+    async get(key){
+      await ensureLoaded();
+      const e = cache.get(key.slice(KEY_PREFIX.length));
+      return e ? JSON.stringify(e) : null;
+    },
+    async set(key, val){
+      const e = typeof val === "string" ? JSON.parse(val) : val;
+      const row = {
+        id: e.id, user_id: currentUser.id, date: e.date,
+        text: e.text || "", images: e.images || [],
+        created_at: e.createdAt, updated_at: e.updatedAt,
+      };
+      const { error } = await sb.from("entries").upsert(row);
+      if (error) throw error;
+      cache.set(e.id, e);
+    },
+    async delete(key){
+      const id = key.slice(KEY_PREFIX.length);
+      const e = cache.get(id);
+      if (e && Array.isArray(e.images)){
+        const paths = e.images.filter(isStoragePath);
+        if (paths.length){ try { await sb.storage.from(BUCKET).remove(paths); } catch(_){} }
+      }
+      const { error } = await sb.from("entries").delete().eq("id", id);
+      if (error) throw error;
+      cache.delete(id);
+    },
+    async list(){
+      await ensureLoaded();
+      return [...cache.keys()].map(id => KEY_PREFIX + id);
+    },
+  };
+}
+
+// localStorage 에 남아있던 기존 기록을 클라우드로 1회 이전
+async function migrateLocalToCloud(){
+  const localKeys = [];
+  try {
+    for (let i = 0; i < localStorage.length; i++){
+      const k = localStorage.key(i);
+      if (k && k.startsWith(KEY_PREFIX)) localKeys.push(k);
+    }
+  } catch(_){ return; }
+  if (!localKeys.length) return;
+  let migrated = 0;
+  for (const k of localKeys){
+    try {
+      const raw = localStorage.getItem(k);
+      if (!raw) continue;
+      const e = JSON.parse(raw);
+      if (!e || !e.id || !e.date) continue;
+      e.images = await prepareImagesForSave(e.id, e.images || []);
+      await storage.set(KEY_PREFIX + e.id, JSON.stringify(e));
+      localStorage.removeItem(k);
+      migrated++;
+    } catch(err){ console.error("migrate fail", err); }
+  }
+  if (migrated) showToast(`기존 기록 ${migrated}개를 클라우드로 옮겼어요`);
+}
+
+/* ── 로그인 UI ─────────────────────────────────────────────── */
+const $authScrim    = document.getElementById("authScrim");
+const $authEmail    = document.getElementById("authEmail");
+const $authPassword = document.getElementById("authPassword");
+const $authMsg      = document.getElementById("authMsg");
+const $authLoginBtn = document.getElementById("authLoginBtn");
+const $authSignupBtn= document.getElementById("authSignupBtn");
+const $authCard     = document.getElementById("authCard");
+const $logoutBtn    = document.getElementById("logoutBtn");
+
+function showLogin(){
+  $authScrim.dataset.open = "true";
+  $authScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function hideLogin(){
+  $authScrim.dataset.open = "false";
+  $authScrim.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+}
+function authBusy(b){ if ($authLoginBtn) $authLoginBtn.disabled = b; if ($authSignupBtn) $authSignupBtn.disabled = b; }
+function authError(m){ if (!$authMsg) return; $authMsg.textContent = m || ""; $authMsg.className = "auth-msg" + (m ? " err" : ""); }
+
+async function doLogin(){
+  const email = $authEmail.value.trim();
+  const password = $authPassword.value;
+  if (!email || !password){ authError("이메일과 비밀번호를 입력하세요"); return; }
+  authBusy(true); authError("로그인 중…");
+  const { data, error } = await sb.auth.signInWithPassword({ email, password });
+  authBusy(false);
+  if (error){ authError(error.message || "로그인에 실패했어요"); return; }
+  authError("");
+  await startApp(data.user);
+}
+async function doSignup(){
+  const email = $authEmail.value.trim();
+  const password = $authPassword.value;
+  if (!email || password.length < 6){ authError("이메일과 6자 이상 비밀번호가 필요해요"); return; }
+  authBusy(true); authError("가입 중…");
+  const { data, error } = await sb.auth.signUp({ email, password });
+  authBusy(false);
+  if (error){ authError(error.message || "가입에 실패했어요"); return; }
+  if (data.session){ authError(""); await startApp(data.user); }
+  else authError("확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인하세요.");
+}
+
+// 로그인 성공 → 클라우드 모드로 전환하고 데이터 로드
+async function startApp(user){
+  currentUser = user;
+  storage = makeSupabaseStorage();
+  hideLogin();
+  const ld = document.getElementById("logoutDivider");
+  if (ld) ld.style.display = "";
+  if ($logoutBtn) $logoutBtn.style.display = "";
+  try { await migrateLocalToCloud(); } catch(e){ console.error(e); }
+  try { await loadAll(); } catch(e){ console.error(e); showToast("기록을 불러오지 못했어요"); }
+  render();
+}
+
+if ($authCard) $authCard.addEventListener("submit", (e) => { e.preventDefault(); doLogin(); });
+if ($authSignupBtn) $authSignupBtn.addEventListener("click", doSignup);
+if ($logoutBtn) $logoutBtn.addEventListener("click", async () => {
+  try { if (sb) await sb.auth.signOut(); } catch(_){}
+  location.reload();
+});
 
 /* ============================================================
    Utilities
@@ -1045,6 +1326,7 @@ async function loadAll(){
   }
   entries.sort(sortEntries);
   state.entries = entries;
+  await ensureSignedUrls(state.entries);
 }
 function sortEntries(a, b){
   if (a.date !== b.date) return a.date < b.date ? 1 : -1;
@@ -1155,7 +1437,7 @@ function renderEntry(e, query){
   if (imgs.length){
     const cls = imgs.length > 1 ? "multi" : "single";
     photos = `<div class="entry-photos ${cls}">` +
-      imgs.map((src, i) => `<img src="${escapeHtml(src)}" alt="첨부 사진 ${i + 1}" data-idx="${i}" data-id="${escapeHtml(e.id)}">`).join("") +
+      imgs.map((src, i) => `<img src="${escapeHtml(imgSrc(src))}" alt="첨부 사진 ${i + 1}" data-idx="${i}" data-id="${escapeHtml(e.id)}">`).join("") +
       `</div>`;
   }
 
@@ -1275,7 +1557,7 @@ function closeEditor(){
 function renderThumbs(){
   $thumbs.innerHTML = state.draftImages.map((src, i) => `
     <div class="thumb">
-      <img src="${src}" alt="첨부 사진 ${i+1}">
+      <img src="${imgSrc(src)}" alt="첨부 사진 ${i+1}">
       <button class="x" type="button" data-rm="${i}" aria-label="사진 ${i+1} 삭제">✕</button>
     </div>
   `).join("");
@@ -1352,17 +1634,26 @@ async function saveFromEditor(){
   }
 
   const now = Date.now();
+  const id = state.editing ? state.editing.id : genId();
+  let storedImages = images;
+  try {
+    storedImages = await prepareImagesForSave(id, images);
+  } catch (err){
+    console.error(err);
+    showToast("사진 업로드에 실패했어요");
+    return;
+  }
   let entry;
   if (state.editing){
     entry = {
       ...state.editing,
-      date, text, images,
+      date, text, images: storedImages,
       updatedAt: now,
     };
   } else {
     entry = {
-      id: genId(),
-      date, text, images,
+      id,
+      date, text, images: storedImages,
       createdAt: now,
       updatedAt: now,
     };
@@ -1380,6 +1671,7 @@ async function saveFromEditor(){
   if (i >= 0) state.entries[i] = entry;
   else state.entries.push(entry);
   state.entries.sort(sortEntries);
+  await ensureSignedUrls([entry]);
 
   closeEditor();
   render();
@@ -1652,7 +1944,7 @@ $entries.addEventListener("click", (e) => {
     const id = img.dataset.id;
     const idx = Number(img.dataset.idx || 0);
     const entry = state.entries.find(x => x.id === id);
-    if (entry && entry.images && entry.images[idx]) openLightbox(entry.images, idx);
+    if (entry && entry.images && entry.images[idx]) openLightbox(entry.images.map(imgSrc), idx);
   }
 });
 
@@ -1840,6 +2132,26 @@ updateThemeIcon();
    Boot
    ============================================================ */
 (async function init(){
+  if (sb){
+    try {
+      const { data } = await sb.auth.getSession();
+      if (data && data.session && data.session.user){
+        await startApp(data.session.user);
+      } else {
+        showLogin();
+        render();
+      }
+      sb.auth.onAuthStateChange((event) => {
+        if (event === "SIGNED_OUT") location.reload();
+      });
+    } catch(e){
+      console.error(e);
+      showLogin();
+      render();
+    }
+    return;
+  }
+  // Supabase SDK 로드 실패 → 기존 로컬(localStorage) 모드로 동작
   try {
     await loadAll();
   } catch(e){
