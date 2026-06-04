@@ -9,6 +9,13 @@
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
 <meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
 <meta name="theme-color" content="#1f1b17" media="(prefers-color-scheme: dark)" />
+<!-- PWA: 홈 화면 설치 + 오프라인 -->
+<link rel="manifest" href="./manifest.json" />
+<meta name="apple-mobile-web-app-capable" content="yes" />
+<meta name="apple-mobile-web-app-status-bar-style" content="default" />
+<meta name="apple-mobile-web-app-title" content="작업일지" />
+<link rel="apple-touch-icon" href="./icon-180.png" />
+<link rel="icon" type="image/png" href="./icon-192.png" />
 <script>
   /* 저장된 테마를 페인트 전에 적용해 깜빡임 방지 */
   try{
@@ -1507,26 +1514,51 @@ function compressImage(file){
    Persistence
    ============================================================ */
 const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 휴지통 보관 30일
+const OFFLINE_CACHE_KEY = "worklog:offline-cache";
+
+function readOfflineCache(){
+  try {
+    const raw = localStorage.getItem(OFFLINE_CACHE_KEY);
+    const arr = raw ? JSON.parse(raw) : null;
+    return Array.isArray(arr) ? arr : null;
+  } catch(_){ return null; }
+}
 
 async function loadAll(){
-  const keys = await storage.list(KEY_PREFIX);
-  const all = [];
-  for (const k of keys){
-    try {
-      const raw = await storage.get(k);
-      if (!raw) continue;
-      const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
-      if (obj && obj.id && obj.date) all.push(obj);
-    } catch(e){ /* skip corrupted */ }
+  try {
+    const keys = await storage.list(KEY_PREFIX);
+    const all = [];
+    for (const k of keys){
+      try {
+        const raw = await storage.get(k);
+        if (!raw) continue;
+        const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
+        if (obj && obj.id && obj.date) all.push(obj);
+      } catch(e){ /* skip corrupted */ }
+    }
+    await purgeExpiredTrash(all);            // 30일 지난 휴지통 영구삭제
+    const active = all.filter(e => !e.deletedAt);
+    const trash  = all.filter(e => e.deletedAt);
+    active.sort(sortEntries);
+    trash.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+    state.entries = active;
+    state.trash = trash;
+    try { await ensureSignedUrls(state.entries); } catch(_){ /* 오프라인 시 사진 URL 생략 */ }
+    // 오프라인 대비 캐시 (본문 기준; 이미지는 온라인에서만 표시)
+    try { localStorage.setItem(OFFLINE_CACHE_KEY, JSON.stringify(active)); } catch(_){}
+  } catch (err) {
+    // 네트워크 실패(오프라인 등) → 마지막으로 본 기록 표시
+    if (isCloud()){
+      const cached = readOfflineCache();
+      if (cached){
+        state.entries = cached;
+        state.trash = [];
+        showToast("오프라인: 마지막으로 본 기록을 표시해요");
+        return;
+      }
+    }
+    throw err;
   }
-  await purgeExpiredTrash(all);            // 30일 지난 휴지통 영구삭제
-  const active = all.filter(e => !e.deletedAt);
-  const trash  = all.filter(e => e.deletedAt);
-  active.sort(sortEntries);
-  trash.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
-  state.entries = active;
-  state.trash = trash;
-  await ensureSignedUrls(state.entries);
 }
 function sortEntries(a, b){
   if (a.date !== b.date) return a.date < b.date ? 1 : -1;
@@ -2513,6 +2545,14 @@ updateThemeIcon();
   }
   render();
 })();
+</script>
+<script>
+  /* PWA 서비스 워커 등록 (오프라인 실행 + 홈 화면 설치) */
+  if ("serviceWorker" in navigator) {
+    window.addEventListener("load", () => {
+      navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW 등록 실패", e));
+    });
+  }
 </script>
 </body>
 </html>
