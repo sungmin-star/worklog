@@ -739,22 +739,31 @@
   }
   .auth-btn.primary{ background:var(--text); color:var(--surface); border-color:var(--text); font-weight:600; }
   .auth-btn:disabled{ opacity:.5; cursor:default; }
+  /* 회원가입 모드에서만 보이는 필드 (이름·생년월일) */
+  .auth-signup-only{ display:none; }
+  .auth-card.signup .auth-signup-only{ display:flex; }
 </style>
 </head>
 <body>
   <div class="auth-scrim" id="authScrim" data-open="false" aria-hidden="true">
     <form class="auth-card" id="authCard" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <h2 id="authTitle">작업일지 로그인</h2>
-      <p class="auth-sub">기기 간 동기화를 위해 로그인하세요. 처음이라면 회원가입 후 메일의 확인 링크를 한 번 눌러주세요.</p>
+      <p class="auth-sub" id="authSub">기기 간 동기화를 위해 로그인하세요.</p>
+      <label class="auth-field auth-signup-only" id="fieldName">이름
+        <input id="authName" type="text" autocomplete="name" placeholder="이름" />
+      </label>
       <label class="auth-field">이메일
         <input id="authEmail" type="email" autocomplete="username" inputmode="email" placeholder="you@example.com" />
       </label>
       <label class="auth-field">비밀번호
         <input id="authPassword" type="password" autocomplete="current-password" placeholder="비밀번호 (6자 이상)" />
       </label>
+      <label class="auth-field auth-signup-only" id="fieldBirth">생년월일
+        <input id="authBirth" type="date" />
+      </label>
       <div class="auth-msg" id="authMsg" role="status" aria-live="polite"></div>
-      <button class="auth-btn primary" id="authLoginBtn" type="submit">로그인</button>
-      <button class="auth-btn" id="authSignupBtn" type="button">회원가입</button>
+      <button class="auth-btn primary" id="authPrimaryBtn" type="submit">로그인</button>
+      <button class="auth-btn" id="authToggleBtn" type="button">회원가입</button>
     </form>
   </div>
   <main class="page">
@@ -1100,15 +1109,21 @@ async function migrateLocalToCloud(){
   if (migrated) showToast(`기존 기록 ${migrated}개를 클라우드로 옮겼어요`);
 }
 
-/* ── 로그인 UI ─────────────────────────────────────────────── */
+/* ── 로그인 / 회원가입 UI ───────────────────────────────────── */
 const $authScrim    = document.getElementById("authScrim");
+const $authCard     = document.getElementById("authCard");
+const $authTitle    = document.getElementById("authTitle");
+const $authSub      = document.getElementById("authSub");
+const $authName     = document.getElementById("authName");
 const $authEmail    = document.getElementById("authEmail");
 const $authPassword = document.getElementById("authPassword");
+const $authBirth    = document.getElementById("authBirth");
 const $authMsg      = document.getElementById("authMsg");
-const $authLoginBtn = document.getElementById("authLoginBtn");
-const $authSignupBtn= document.getElementById("authSignupBtn");
-const $authCard     = document.getElementById("authCard");
+const $authPrimaryBtn = document.getElementById("authPrimaryBtn");
+const $authToggleBtn  = document.getElementById("authToggleBtn");
 const $logoutBtn    = document.getElementById("logoutBtn");
+
+let authMode = "login"; // "login" | "signup"
 
 function showLogin(){
   $authScrim.dataset.open = "true";
@@ -1120,8 +1135,23 @@ function hideLogin(){
   $authScrim.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
 }
-function authBusy(b){ if ($authLoginBtn) $authLoginBtn.disabled = b; if ($authSignupBtn) $authSignupBtn.disabled = b; }
+function authBusy(b){ if ($authPrimaryBtn) $authPrimaryBtn.disabled = b; if ($authToggleBtn) $authToggleBtn.disabled = b; }
 function authError(m){ if (!$authMsg) return; $authMsg.textContent = m || ""; $authMsg.className = "auth-msg" + (m ? " err" : ""); }
+
+// 로그인 ↔ 회원가입 화면 전환
+function setAuthMode(mode){
+  authMode = mode;
+  const signup = mode === "signup";
+  $authCard.classList.toggle("signup", signup);
+  $authTitle.textContent = signup ? "작업일지 회원가입" : "작업일지 로그인";
+  $authSub.textContent = signup
+    ? "이메일·비밀번호·이름·생년월일을 입력해 계정을 만드세요."
+    : "기기 간 동기화를 위해 로그인하세요.";
+  $authPrimaryBtn.textContent = signup ? "가입하기" : "로그인";
+  $authToggleBtn.textContent  = signup ? "로그인으로 돌아가기" : "회원가입";
+  $authPassword.setAttribute("autocomplete", signup ? "new-password" : "current-password");
+  authError("");
+}
 
 async function doLogin(){
   const email = $authEmail.value.trim();
@@ -1135,15 +1165,22 @@ async function doLogin(){
   await startApp(data.user);
 }
 async function doSignup(){
+  const name = $authName.value.trim();
   const email = $authEmail.value.trim();
   const password = $authPassword.value;
-  if (!email || password.length < 6){ authError("이메일과 6자 이상 비밀번호가 필요해요"); return; }
+  const birthdate = $authBirth.value || ""; // "YYYY-MM-DD"
+  if (!name){ authError("이름을 입력하세요"); $authName.focus(); return; }
+  if (!email){ authError("이메일을 입력하세요"); $authEmail.focus(); return; }
+  if (password.length < 6){ authError("비밀번호는 6자 이상이어야 해요"); $authPassword.focus(); return; }
   authBusy(true); authError("가입 중…");
-  const { data, error } = await sb.auth.signUp({ email, password });
+  const { data, error } = await sb.auth.signUp({
+    email, password,
+    options: { data: { name, birthdate } },
+  });
   authBusy(false);
   if (error){ authError(error.message || "가입에 실패했어요"); return; }
   if (data.session){ authError(""); await startApp(data.user); }
-  else authError("확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인하세요.");
+  else { setAuthMode("login"); authError("확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인하세요."); }
 }
 
 // 로그인 성공 → 클라우드 모드로 전환하고 데이터 로드
@@ -1159,8 +1196,14 @@ async function startApp(user){
   render();
 }
 
-if ($authCard) $authCard.addEventListener("submit", (e) => { e.preventDefault(); doLogin(); });
-if ($authSignupBtn) $authSignupBtn.addEventListener("click", doSignup);
+if ($authCard) $authCard.addEventListener("submit", (e) => {
+  e.preventDefault();
+  if (authMode === "signup") doSignup();
+  else doLogin();
+});
+if ($authToggleBtn) $authToggleBtn.addEventListener("click", () => {
+  setAuthMode(authMode === "signup" ? "login" : "signup");
+});
 if ($logoutBtn) $logoutBtn.addEventListener("click", async () => {
   try { if (sb) await sb.auth.signOut(); } catch(_){}
   location.reload();
