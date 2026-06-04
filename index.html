@@ -754,6 +754,18 @@
   }
   .auth-card h2{ margin:0; font-size:21px; }
   .auth-logo{ display:block; width:170px; max-width:72%; height:auto; margin:0 auto 4px; border-radius:12px; }
+  /* 테마별 로고 전환 (다크는 배경 투명 로고) */
+  .logo-dark{ display:none; }
+  @media (prefers-color-scheme: dark){
+    :root:not([data-theme="light"]) .logo-light{ display:none; }
+    :root:not([data-theme="light"]) .brand-logo.logo-dark{ display:block; }
+    :root:not([data-theme="light"]) .auth-logo.logo-dark{ display:block; }
+  }
+  :root[data-theme="dark"] .logo-light{ display:none; }
+  :root[data-theme="dark"] .brand-logo.logo-dark{ display:block; }
+  :root[data-theme="dark"] .auth-logo.logo-dark{ display:block; }
+  :root[data-theme="light"] .logo-light{ display:block; }
+  :root[data-theme="light"] .logo-dark{ display:none; }
   .auth-sub{ margin:0 0 6px; color:var(--muted); font-size:13px; line-height:1.5; }
   .auth-field{ display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--muted); }
   .auth-field input{
@@ -837,7 +849,7 @@
 <body>
   <div class="auth-scrim" id="authScrim" data-open="false" aria-hidden="true">
     <form class="auth-card mode-login" id="authCard" role="dialog" aria-modal="true" aria-labelledby="authTitle">
-      <img class="auth-logo" src="./logo.png" alt="L'Heure Bleue" />
+      <img class="auth-logo logo-light" src="./logo.png" alt="L'Heure Bleue" /><img class="auth-logo logo-dark" src="./logo-dark.png" alt="L'Heure Bleue" />
       <h2 id="authTitle">작업일지 로그인</h2>
       <p class="auth-sub" id="authSub">기기 간 동기화를 위해 로그인하세요.</p>
       <label class="auth-field" id="fieldName">이름(닉네임)
@@ -877,7 +889,7 @@
 
   <main class="page">
     <header class="top">
-      <h1 class="title"><img class="brand-logo" src="./logo.png" alt="L'Heure Bleue" /></h1>
+      <h1 class="title"><img class="brand-logo logo-light" src="./logo.png" alt="L'Heure Bleue" /><img class="brand-logo logo-dark" src="./logo-dark.png" alt="L'Heure Bleue" /></h1>
       <div class="header-actions">
       <button class="icon-btn" id="themeBtn" aria-label="라이트/다크 테마 전환"></button>
       <div class="menu-wrap">
