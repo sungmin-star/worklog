@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
-<title>성민의 작업일지</title>
+<title>L'Heure Bleue</title>
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
@@ -13,7 +13,7 @@
 <link rel="manifest" href="./manifest.json" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
 <meta name="apple-mobile-web-app-status-bar-style" content="default" />
-<meta name="apple-mobile-web-app-title" content="작업일지" />
+<meta name="apple-mobile-web-app-title" content="L'Heure Bleue" />
 <link rel="apple-touch-icon" href="./icon-180.png" />
 <link rel="icon" type="image/png" href="./icon-192.png" />
 <script>
@@ -127,22 +127,29 @@
 
   /* ---------- Header ---------- */
   header.top{
+    position:relative;
     display:flex;
     align-items:center;
-    justify-content:space-between;
+    justify-content:center;
     gap:16px;
-    margin-bottom:6px;
+    min-height:46px;
+    margin-bottom:10px;
   }
-  h1.title{
-    font-family:var(--display);
-    font-weight:700;
-    font-size:40px;
-    line-height:1.05;
-    margin:0;
-    letter-spacing:-0.03em;
+  h1.title{ margin:0; line-height:0; }
+  .brand-logo{
+    display:block;
+    width:210px;
+    max-width:60%;
+    height:auto;
+    border-radius:14px;
   }
-  @media (max-width:600px){ h1.title{ font-size:32px; } }
-  .header-actions{ display:flex; align-items:center; gap:8px; }
+  @media (max-width:600px){ .brand-logo{ width:175px; } }
+  .header-actions{
+    position:absolute;
+    right:0; top:50%;
+    transform:translateY(-50%);
+    display:flex; align-items:center; gap:8px;
+  }
   .menu-wrap{ position:relative; }
   .icon-btn{
     width:38px; height:38px;
@@ -747,6 +754,7 @@
     display:flex; flex-direction:column; gap:12px;
   }
   .auth-card h2{ margin:0; font-size:21px; }
+  .auth-logo{ display:block; width:170px; max-width:72%; height:auto; margin:0 auto 4px; border-radius:12px; }
   .auth-sub{ margin:0 0 6px; color:var(--muted); font-size:13px; line-height:1.5; }
   .auth-field{ display:flex; flex-direction:column; gap:6px; font-size:13px; color:var(--muted); }
   .auth-field input{
@@ -830,6 +838,7 @@
 <body>
   <div class="auth-scrim" id="authScrim" data-open="false" aria-hidden="true">
     <form class="auth-card mode-login" id="authCard" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+      <img class="auth-logo" src="./logo.png" alt="L'Heure Bleue" />
       <h2 id="authTitle">작업일지 로그인</h2>
       <p class="auth-sub" id="authSub">기기 간 동기화를 위해 로그인하세요.</p>
       <label class="auth-field" id="fieldName">이름(닉네임)
@@ -869,7 +878,7 @@
 
   <main class="page">
     <header class="top">
-      <h1 class="title">성민의 작업일지</h1>
+      <h1 class="title"><img class="brand-logo" src="./logo.png" alt="L'Heure Bleue" /></h1>
       <div class="header-actions">
       <button class="icon-btn" id="themeBtn" aria-label="라이트/다크 테마 전환"></button>
       <div class="menu-wrap">
@@ -2715,7 +2724,7 @@ async function enableBiometric(){
   const cred = await navigator.credentials.create({
     publicKey: {
       challenge,
-      rp: { name: "성민의 작업일지" },
+      rp: { name: "L'Heure Bleue" },
       user: { id: userId, name: (currentUser && currentUser.email) || "worklog", displayName: "작업일지" },
       pubKeyCredParams: [{ type:"public-key", alg:-7 }, { type:"public-key", alg:-257 }],
       authenticatorSelection: { authenticatorAttachment:"platform", userVerification:"required" },
