@@ -335,6 +335,24 @@
   .entry-edit svg{ width:15px; height:15px; }
   @media (hover:none){ .entry-edit{ opacity:1; } }
 
+  .entry-actions{ display:flex; align-items:center; gap:6px; flex-shrink:0; }
+  .entry-trash{
+    width:32px; height:32px;
+    border-radius:50%;
+    border:none;
+    background:var(--surface-2);
+    color:var(--muted);
+    display:inline-flex; align-items:center; justify-content:center;
+    opacity:0;
+    transition:opacity .18s ease, background-color .15s ease, color .15s ease, transform .1s ease;
+    flex-shrink:0;
+  }
+  .entry:hover .entry-trash{ opacity:1; }
+  .entry-trash:hover{ background:var(--danger); color:#fff; }
+  .entry-trash:active{ transform:scale(0.92); }
+  .entry-trash svg{ width:15px; height:15px; }
+  @media (hover:none){ .entry-trash{ opacity:1; } }
+
   /* 본문: 넉넉한 글줄·줄간격으로 그 자리에서 읽기 */
   .entry-text{
     white-space:pre-wrap;
@@ -1678,9 +1696,14 @@ function renderEntry(e, query){
     <article class="entry" data-id="${escapeHtml(e.id)}">
       <div class="entry-head">
         <div class="entry-date">${dateHtml}</div>
-        <button class="entry-edit" type="button" data-edit="${escapeHtml(e.id)}" aria-label="기록 수정">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
-        </button>
+        <div class="entry-actions">
+          <button class="entry-edit" type="button" data-edit="${escapeHtml(e.id)}" aria-label="기록 수정">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
+          </button>
+          <button class="entry-trash" type="button" data-trash="${escapeHtml(e.id)}" aria-label="휴지통으로 이동">
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"></path><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"></path><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6"></path></svg>
+          </button>
+        </div>
       </div>
       ${textBlock}
       ${photos}
@@ -2078,7 +2101,7 @@ function renderTrash(){
         </div>
         <div class="trash-actions">
           <button class="btn ghost" type="button" data-restore="${escapeHtml(e.id)}">복원</button>
-          <button class="btn danger" type="button" data-purge="${escapeHtml(e.id)}">완전삭제</button>
+          <button class="btn danger" type="button" data-purge="${escapeHtml(e.id)}">삭제</button>
         </div>
       </div>`;
   }).join("");
@@ -2106,8 +2129,8 @@ $trashList.addEventListener("click", async (e) => {
   } else if (p){
     const id = p.dataset.purge;
     openConfirm({
-      title: "완전 삭제", message: "이 기록을 완전히 삭제할까요? <b>되돌릴 수 없어요.</b>",
-      okText: "완전삭제", danger: true,
+      title: "삭제", message: "이 기록을 완전히 삭제할까요? <b>되돌릴 수 없어요.</b>",
+      okText: "삭제", danger: true,
       onOk: async () => {
         try { await purgeEntry(id); } catch(err){ console.error(err); showToast("삭제에 실패했어요"); return; }
         renderTrash(); render();
@@ -2222,6 +2245,23 @@ $entries.addEventListener("click", (e) => {
   if (editBtn){
     const entry = state.entries.find(x => x.id === editBtn.dataset.edit);
     if (entry) openEditor(entry);
+    return;
+  }
+  // 1-2) 휴지통으로 보내기 버튼
+  const trashBtn = e.target.closest("[data-trash]");
+  if (trashBtn){
+    const id = trashBtn.dataset.trash;
+    openConfirm({
+      title: "기록 삭제",
+      message: "이 기록을 휴지통으로 옮길까요? <b>30일</b> 안에 복원할 수 있어요.",
+      okText: "삭제",
+      danger: true,
+      onOk: async () => {
+        try { await trashEntry(id); } catch(err){ console.error(err); showToast("삭제에 실패했어요"); return; }
+        render();
+        showToast("휴지통으로 옮겼어요");
+      },
+    });
     return;
   }
   // 2) "계속 읽기 / 접기" 토글
