@@ -1,7 +1,7 @@
 {
-  "name": "성민의 작업일지",
-  "short_name": "작업일지",
-  "description": "매일의 작업을 기록하는 일지",
+  "name": "L'Heure Bleue",
+  "short_name": "L'Heure Bleue",
+  "description": "L'Heure Bleue — 작업 일지",
   "lang": "ko",
   "start_url": "./",
   "scope": "./",
