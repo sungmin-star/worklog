@@ -739,9 +739,34 @@
   }
   .auth-btn.primary{ background:var(--text); color:var(--surface); border-color:var(--text); font-weight:600; }
   .auth-btn:disabled{ opacity:.5; cursor:default; }
-  /* 회원가입 모드에서만 보이는 필드 (이름·비밀번호 확인·생년월일) */
-  .auth-signup-only{ display:none; }
-  .auth-card.signup .auth-signup-only{ display:flex; }
+  /* 모드별 표시 필드: 기본 숨김 후 모드 클래스로 노출 */
+  #fieldName, #fieldPassword2, #pwMatch, #fieldBirth, #authForgotBtn{ display:none; }
+  .auth-card.mode-signup #fieldName,
+  .auth-card.mode-signup #fieldPassword2,
+  .auth-card.mode-signup #pwMatch,
+  .auth-card.mode-signup #fieldBirth{ display:flex; }
+  .auth-card.mode-recovery #fieldPassword2,
+  .auth-card.mode-recovery #pwMatch{ display:flex; }
+  .auth-card.mode-login #authForgotBtn{ display:block; }
+  .auth-card.mode-recovery #fieldEmail,
+  .auth-card.mode-recovery #authToggleBtn{ display:none; }
+  .auth-link{
+    background:none; border:none; color:var(--muted);
+    font-size:12.5px; text-align:left; padding:2px 0;
+    text-decoration:underline; cursor:pointer; align-self:flex-start;
+  }
+  .auth-link:hover{ color:var(--text); }
+  /* 휴지통 목록 */
+  .trash-item{ display:flex; align-items:center; gap:12px; padding:12px 4px; border-bottom:1px solid var(--line); }
+  .trash-item:last-child{ border-bottom:none; }
+  .trash-info{ flex:1; min-width:0; }
+  .trash-info .t-date{ font-size:13px; color:var(--muted); }
+  .trash-info .t-preview{ font-size:14.5px; color:var(--text); overflow:hidden; text-overflow:ellipsis; white-space:nowrap; }
+  .trash-info .t-left{ font-size:12px; color:var(--danger); margin-top:2px; }
+  .trash-actions{ display:flex; gap:6px; flex:none; }
+  .trash-actions .btn{ padding:7px 12px; font-size:13px; box-shadow:none; }
+  /* 확인창은 휴지통 모달 위에 표시 */
+  #confirmScrim{ z-index:150; }
   /* 비밀번호 일치 안내 */
   .auth-hint{ flex-direction:column; font-size:12.5px; line-height:1.4; margin-top:-4px; color:var(--muted); min-height:1px; }
   .auth-hint:empty{ display:none; }
@@ -751,25 +776,26 @@
 </head>
 <body>
   <div class="auth-scrim" id="authScrim" data-open="false" aria-hidden="true">
-    <form class="auth-card" id="authCard" role="dialog" aria-modal="true" aria-labelledby="authTitle">
+    <form class="auth-card mode-login" id="authCard" role="dialog" aria-modal="true" aria-labelledby="authTitle">
       <h2 id="authTitle">작업일지 로그인</h2>
       <p class="auth-sub" id="authSub">기기 간 동기화를 위해 로그인하세요.</p>
-      <label class="auth-field auth-signup-only" id="fieldName">이름(닉네임)
+      <label class="auth-field" id="fieldName">이름(닉네임)
         <input id="authName" type="text" autocomplete="nickname" placeholder="이름 또는 닉네임" />
       </label>
-      <label class="auth-field">이메일
+      <label class="auth-field" id="fieldEmail">이메일
         <input id="authEmail" type="email" autocomplete="username" inputmode="email" placeholder="you@example.com" />
       </label>
-      <label class="auth-field">비밀번호
+      <label class="auth-field" id="fieldPassword">비밀번호
         <input id="authPassword" type="password" autocomplete="current-password" placeholder="비밀번호 (6자 이상)" />
       </label>
-      <label class="auth-field auth-signup-only" id="fieldPassword2">비밀번호 확인
+      <label class="auth-field" id="fieldPassword2">비밀번호 확인
         <input id="authPassword2" type="password" autocomplete="new-password" placeholder="비밀번호 다시 입력" />
       </label>
-      <div class="auth-hint auth-signup-only" id="pwMatch"></div>
-      <label class="auth-field auth-signup-only" id="fieldBirth">생년월일
+      <div class="auth-hint" id="pwMatch"></div>
+      <label class="auth-field" id="fieldBirth">생년월일
         <input id="authBirth" type="date" />
       </label>
+      <button type="button" class="auth-link" id="authForgotBtn">비밀번호를 잊으셨나요?</button>
       <div class="auth-msg" id="authMsg" role="status" aria-live="polite"></div>
       <button class="auth-btn primary" id="authPrimaryBtn" type="submit">로그인</button>
       <button class="auth-btn" id="authToggleBtn" type="button">회원가입</button>
@@ -791,6 +817,8 @@
           <button id="importBtn" role="menuitem">백업 가져오기</button>
           <div class="divider"></div>
           <button id="aboutBtn" role="menuitem">작업 일지에 대하여</button>
+          <div class="divider"></div>
+          <button id="trashBtn" role="menuitem">🗑 휴지통</button>
           <div class="divider" id="logoutDivider" style="display:none"></div>
           <button id="logoutBtn" role="menuitem" style="display:none">로그아웃</button>
         </div>
@@ -879,6 +907,21 @@
     </div>
   </div>
 
+  <!-- Trash Modal -->
+  <div class="scrim" id="trashScrim" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="trashTitle" style="max-width:560px">
+      <h2 id="trashTitle">🗑 휴지통</h2>
+      <p class="summary-note">삭제한 기록은 <b>30일</b> 동안 보관되며, 이후 자동으로 완전 삭제돼요.</p>
+      <div id="trashList" style="max-height:55vh; overflow-y:auto;"></div>
+      <div class="modal-actions">
+        <button class="btn danger" id="trashEmptyBtn">휴지통 비우기</button>
+        <div class="right" style="margin-left:auto">
+          <button class="btn" id="trashClose">닫기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Lightbox -->
   <div class="lightbox" id="lightbox" aria-hidden="true" role="dialog" aria-label="사진 확대 보기">
     <button class="close" id="lbClose" aria-label="닫기">✕</button>
@@ -948,7 +991,8 @@ const JPEG_QUALITY = 0.82;
    State
    ============================================================ */
 const state = {
-  entries: [],         // loaded entries
+  entries: [],         // loaded entries (휴지통 제외)
+  trash: [],           // 삭제되어 휴지통에 있는 기록
   search: "",
   monthFilter: null,   // "YYYY-MM" or null
   editing: null,       // entry being edited, or null when creating
@@ -1052,6 +1096,7 @@ function makeSupabaseStorage(){
         images: Array.isArray(row.images) ? row.images : [],
         createdAt: Number(row.created_at) || 0,
         updatedAt: Number(row.updated_at) || 0,
+        deletedAt: row.deleted_at != null ? Number(row.deleted_at) : null,
       });
     }
     loaded = true;
@@ -1069,6 +1114,7 @@ function makeSupabaseStorage(){
         id: e.id, user_id: currentUser.id, date: e.date,
         text: e.text || "", images: e.images || [],
         created_at: e.createdAt, updated_at: e.updatedAt,
+        deleted_at: e.deletedAt != null ? e.deletedAt : null,
       };
       const { error } = await sb.from("entries").upsert(row);
       if (error) throw error;
@@ -1132,7 +1178,11 @@ const $authBirth    = document.getElementById("authBirth");
 const $authMsg      = document.getElementById("authMsg");
 const $authPrimaryBtn = document.getElementById("authPrimaryBtn");
 const $authToggleBtn  = document.getElementById("authToggleBtn");
+const $authForgotBtn  = document.getElementById("authForgotBtn");
 const $logoutBtn    = document.getElementById("logoutBtn");
+
+// recovery(비밀번호 재설정) 링크로 들어왔는지: SDK가 URL 해시를 지우기 전에 캡처
+const INITIAL_HASH = (typeof location !== "undefined" && location.hash) ? location.hash : "";
 
 let authMode = "login"; // "login" | "signup"
 
@@ -1149,18 +1199,27 @@ function hideLogin(){
 function authBusy(b){ if ($authPrimaryBtn) $authPrimaryBtn.disabled = b; if ($authToggleBtn) $authToggleBtn.disabled = b; }
 function authError(m){ if (!$authMsg) return; $authMsg.textContent = m || ""; $authMsg.className = "auth-msg" + (m ? " err" : ""); }
 
-// 로그인 ↔ 회원가입 화면 전환
+// 로그인 / 회원가입 / 비밀번호 재설정 화면 전환
 function setAuthMode(mode){
   authMode = mode;
-  const signup = mode === "signup";
-  $authCard.classList.toggle("signup", signup);
-  $authTitle.textContent = signup ? "작업일지 회원가입" : "작업일지 로그인";
-  $authSub.textContent = signup
-    ? "이메일·비밀번호·이름·생년월일을 입력해 계정을 만드세요."
-    : "기기 간 동기화를 위해 로그인하세요.";
-  $authPrimaryBtn.textContent = signup ? "가입하기" : "로그인";
-  $authToggleBtn.textContent  = signup ? "로그인으로 돌아가기" : "회원가입";
-  $authPassword.setAttribute("autocomplete", signup ? "new-password" : "current-password");
+  $authCard.classList.remove("mode-login", "mode-signup", "mode-recovery");
+  $authCard.classList.add("mode-" + mode);
+  if (mode === "signup"){
+    $authTitle.textContent = "작업일지 회원가입";
+    $authSub.textContent   = "이메일·비밀번호·이름·생년월일을 입력해 계정을 만드세요.";
+    $authPrimaryBtn.textContent = "가입하기";
+    $authToggleBtn.textContent  = "로그인으로 돌아가기";
+  } else if (mode === "recovery"){
+    $authTitle.textContent = "새 비밀번호 설정";
+    $authSub.textContent   = "새로 사용할 비밀번호를 입력하세요.";
+    $authPrimaryBtn.textContent = "비밀번호 변경";
+  } else {
+    $authTitle.textContent = "작업일지 로그인";
+    $authSub.textContent   = "기기 간 동기화를 위해 로그인하세요.";
+    $authPrimaryBtn.textContent = "로그인";
+    $authToggleBtn.textContent  = "회원가입";
+  }
+  $authPassword.setAttribute("autocomplete", mode === "login" ? "current-password" : "new-password");
   if ($authPassword2) $authPassword2.value = "";
   updatePwMatch();
   authError("");
@@ -1169,14 +1228,15 @@ function setAuthMode(mode){
 // 비밀번호 / 비밀번호 확인 일치 여부 안내
 function updatePwMatch(){
   if (!$pwMatch) return;
-  if (authMode !== "signup" || !$authPassword2.value){
+  // 비밀번호 확인란이 보이는 모드(회원가입·재설정)에서만 안내
+  if (authMode === "login" || !$authPassword2.value){
     $pwMatch.textContent = "";
-    $pwMatch.className = "auth-hint auth-signup-only";
+    $pwMatch.className = "auth-hint";
     return;
   }
   const ok = $authPassword.value === $authPassword2.value;
   $pwMatch.textContent = ok ? "비밀번호가 일치해요" : "비밀번호가 일치하지 않아요";
-  $pwMatch.className = "auth-hint auth-signup-only " + (ok ? "ok" : "err");
+  $pwMatch.className = "auth-hint " + (ok ? "ok" : "err");
 }
 
 async function doLogin(){
@@ -1224,6 +1284,33 @@ async function doSignup(){
   else { setAuthMode("login"); authError("확인 메일을 보냈어요. 메일의 링크를 누른 뒤 로그인하세요."); }
 }
 
+// 비밀번호 재설정 메일 보내기
+async function doForgotPassword(){
+  const email = $authEmail.value.trim();
+  if (!email){ authError("재설정 메일을 받을 이메일을 입력하세요"); $authEmail.focus(); return; }
+  authBusy(true); authError("재설정 메일 보내는 중…");
+  const redirectTo = location.origin + location.pathname;
+  const { error } = await sb.auth.resetPasswordForEmail(email, { redirectTo });
+  authBusy(false);
+  if (error){ authError(error.message || "메일 전송에 실패했어요"); return; }
+  authError("재설정 메일을 보냈어요. 메일의 링크를 눌러 새 비밀번호를 설정하세요.");
+}
+
+// 재설정 링크로 들어와 새 비밀번호 저장
+async function doSetNewPassword(){
+  const password = $authPassword.value;
+  const password2 = $authPassword2.value;
+  if (password.length < 6){ authError("비밀번호는 6자 이상이어야 해요"); $authPassword.focus(); return; }
+  if (password !== password2){ authError("비밀번호가 일치하지 않아요"); $authPassword2.focus(); return; }
+  authBusy(true); authError("변경 중…");
+  const { data, error } = await sb.auth.updateUser({ password });
+  authBusy(false);
+  if (error){ authError(error.message || "변경에 실패했어요"); return; }
+  authError("");
+  showToast("비밀번호를 변경했어요");
+  await startApp(data.user);
+}
+
 // 로그인 성공 → 클라우드 모드로 전환하고 데이터 로드
 async function startApp(user){
   currentUser = user;
@@ -1240,11 +1327,13 @@ async function startApp(user){
 if ($authCard) $authCard.addEventListener("submit", (e) => {
   e.preventDefault();
   if (authMode === "signup") doSignup();
+  else if (authMode === "recovery") doSetNewPassword();
   else doLogin();
 });
 if ($authToggleBtn) $authToggleBtn.addEventListener("click", () => {
   setAuthMode(authMode === "signup" ? "login" : "signup");
 });
+if ($authForgotBtn) $authForgotBtn.addEventListener("click", doForgotPassword);
 if ($authPassword) $authPassword.addEventListener("input", updatePwMatch);
 if ($authPassword2) $authPassword2.addEventListener("input", updatePwMatch);
 if ($logoutBtn) $logoutBtn.addEventListener("click", async () => {
@@ -1399,19 +1488,26 @@ function compressImage(file){
 /* ============================================================
    Persistence
    ============================================================ */
+const TRASH_TTL_MS = 30 * 24 * 60 * 60 * 1000; // 휴지통 보관 30일
+
 async function loadAll(){
   const keys = await storage.list(KEY_PREFIX);
-  const entries = [];
+  const all = [];
   for (const k of keys){
     try {
       const raw = await storage.get(k);
       if (!raw) continue;
       const obj = typeof raw === "string" ? JSON.parse(raw) : raw;
-      if (obj && obj.id && obj.date) entries.push(obj);
+      if (obj && obj.id && obj.date) all.push(obj);
     } catch(e){ /* skip corrupted */ }
   }
-  entries.sort(sortEntries);
-  state.entries = entries;
+  await purgeExpiredTrash(all);            // 30일 지난 휴지통 영구삭제
+  const active = all.filter(e => !e.deletedAt);
+  const trash  = all.filter(e => e.deletedAt);
+  active.sort(sortEntries);
+  trash.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+  state.entries = active;
+  state.trash = trash;
   await ensureSignedUrls(state.entries);
 }
 function sortEntries(a, b){
@@ -1421,8 +1517,53 @@ function sortEntries(a, b){
 async function saveEntry(entry){
   await storage.set(KEY_PREFIX + entry.id, JSON.stringify(entry));
 }
+// 영구 삭제 (행 + Storage 이미지 제거)
 async function deleteEntry(id){
   await storage.delete(KEY_PREFIX + id);
+}
+
+/* ── 휴지통 ─────────────────────────────────────────────────── */
+// 삭제 → 휴지통으로 이동(소프트 삭제)
+async function trashEntry(id){
+  const e = state.entries.find(x => x.id === id);
+  if (!e) return;
+  e.deletedAt = Date.now();
+  await saveEntry(e);
+  state.entries = state.entries.filter(x => x.id !== id);
+  state.trash.unshift(e);
+}
+// 휴지통에서 복원
+async function restoreEntry(id){
+  const e = state.trash.find(x => x.id === id);
+  if (!e) return;
+  e.deletedAt = null;
+  await saveEntry(e);
+  state.trash = state.trash.filter(x => x.id !== id);
+  state.entries.push(e);
+  state.entries.sort(sortEntries);
+  await ensureSignedUrls([e]);   // 복원된 기록의 사진 서명 URL 갱신
+}
+// 완전 삭제(되돌릴 수 없음)
+async function purgeEntry(id){
+  await deleteEntry(id);
+  state.trash = state.trash.filter(x => x.id !== id);
+}
+// 휴지통 비우기
+async function emptyTrash(){
+  for (const id of state.trash.map(e => e.id)){
+    try { await deleteEntry(id); } catch(err){ console.error(err); }
+  }
+  state.trash = [];
+}
+// 30일 지난 항목 자동 영구삭제 (로드 시 호출, all 배열에서도 제거)
+async function purgeExpiredTrash(all){
+  const now = Date.now();
+  const expired = all.filter(e => e.deletedAt && (now - e.deletedAt) > TRASH_TTL_MS);
+  for (const e of expired){
+    try { await deleteEntry(e.id); } catch(err){ console.error(err); }
+    const i = all.indexOf(e);
+    if (i >= 0) all.splice(i, 1);
+  }
 }
 
 /* ============================================================
@@ -1768,16 +1909,17 @@ $deleteBtn.addEventListener("click", () => {
   const id = state.editing.id;
   openConfirm({
     title: "기록 삭제",
-    message: "이 기록을 정말 삭제할까요? 되돌릴 수 없어요.",
+    message: "이 기록을 휴지통으로 옮길까요? <b>30일</b> 안에 복원할 수 있어요.",
     okText: "삭제",
     danger: true,
     onOk: async () => {
       try {
-        await deleteEntry(id);
-        state.entries = state.entries.filter(e => e.id !== id);
+        await trashEntry(id);
         closeEditor();
         render();
+        showToast("휴지통으로 옮겼어요");
       } catch (err){
+        console.error(err);
         showToast("삭제에 실패했어요");
       }
     },
@@ -1907,6 +2049,82 @@ $menuBtn.addEventListener("click", (e) => {
 });
 document.addEventListener("click", (e) => {
   if (!$menu.contains(e.target) && e.target !== $menuBtn) setMenu(false);
+});
+
+/* ── 휴지통 모달 ───────────────────────────────────────────── */
+const $trashScrim = document.getElementById("trashScrim");
+const $trashList  = document.getElementById("trashList");
+const $trashEmptyBtn = document.getElementById("trashEmptyBtn");
+
+function trashDaysLeft(deletedAt){
+  return Math.max(0, Math.ceil((TRASH_TTL_MS - (Date.now() - deletedAt)) / (24*60*60*1000)));
+}
+function renderTrash(){
+  const list = state.trash || [];
+  if ($trashEmptyBtn) $trashEmptyBtn.disabled = !list.length;
+  if (!list.length){
+    $trashList.innerHTML = `<p class="summary-note" style="text-align:center; padding:28px 0;">휴지통이 비어 있어요</p>`;
+    return;
+  }
+  $trashList.innerHTML = list.map(e => {
+    const dl = formatDateLine(e.date);
+    const txt = (e.text || "").trim().replace(/\s+/g, " ");
+    const preview = txt ? txt.slice(0, 60) : ((e.images && e.images.length) ? `사진 ${e.images.length}장` : "(내용 없음)");
+    return `<div class="trash-item">
+        <div class="trash-info">
+          <div class="t-date">${escapeHtml(dl.full)}</div>
+          <div class="t-preview">${escapeHtml(preview)}</div>
+          <div class="t-left">${trashDaysLeft(e.deletedAt)}일 후 완전 삭제</div>
+        </div>
+        <div class="trash-actions">
+          <button class="btn ghost" type="button" data-restore="${escapeHtml(e.id)}">복원</button>
+          <button class="btn danger" type="button" data-purge="${escapeHtml(e.id)}">완전삭제</button>
+        </div>
+      </div>`;
+  }).join("");
+}
+function openTrash(){
+  renderTrash();
+  $trashScrim.dataset.open = "true";
+  $trashScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeTrash(){
+  $trashScrim.dataset.open = "false";
+  $trashScrim.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+}
+document.getElementById("trashBtn").addEventListener("click", () => { setMenu(false); openTrash(); });
+document.getElementById("trashClose").addEventListener("click", closeTrash);
+$trashScrim.addEventListener("click", (e) => { if (e.target === $trashScrim) closeTrash(); });
+$trashList.addEventListener("click", async (e) => {
+  const r = e.target.closest("[data-restore]");
+  const p = e.target.closest("[data-purge]");
+  if (r){
+    try { await restoreEntry(r.dataset.restore); } catch(err){ console.error(err); showToast("복원에 실패했어요"); return; }
+    renderTrash(); render(); showToast("복원했어요");
+  } else if (p){
+    const id = p.dataset.purge;
+    openConfirm({
+      title: "완전 삭제", message: "이 기록을 완전히 삭제할까요? <b>되돌릴 수 없어요.</b>",
+      okText: "완전삭제", danger: true,
+      onOk: async () => {
+        try { await purgeEntry(id); } catch(err){ console.error(err); showToast("삭제에 실패했어요"); return; }
+        renderTrash(); render();
+      },
+    });
+  }
+});
+$trashEmptyBtn.addEventListener("click", () => {
+  if (!state.trash.length) return;
+  openConfirm({
+    title: "휴지통 비우기", message: `휴지통의 <b>${state.trash.length}개</b> 기록을 완전히 삭제할까요? 되돌릴 수 없어요.`,
+    okText: "비우기", danger: true,
+    onOk: async () => {
+      try { await emptyTrash(); } catch(err){ console.error(err); showToast("실패했어요"); return; }
+      renderTrash(); render(); showToast("휴지통을 비웠어요");
+    },
+  });
 });
 
 document.getElementById("exportBtn").addEventListener("click", () => {
@@ -2219,6 +2437,18 @@ updateThemeIcon();
    ============================================================ */
 (async function init(){
   if (sb){
+    // 인증 상태 변화 감지 (로그아웃·비밀번호 재설정)
+    sb.auth.onAuthStateChange((event) => {
+      if (event === "SIGNED_OUT") location.reload();
+      else if (event === "PASSWORD_RECOVERY"){ showLogin(); setAuthMode("recovery"); }
+    });
+    // 비밀번호 재설정 메일 링크로 들어온 경우 → 새 비밀번호 설정 화면
+    if (INITIAL_HASH.includes("type=recovery")){
+      showLogin();
+      setAuthMode("recovery");
+      render();
+      return;
+    }
     try {
       const { data } = await sb.auth.getSession();
       if (data && data.session && data.session.user){
@@ -2227,9 +2457,6 @@ updateThemeIcon();
         showLogin();
         render();
       }
-      sb.auth.onAuthStateChange((event) => {
-        if (event === "SIGNED_OUT") location.reload();
-      });
     } catch(e){
       console.error(e);
       showLogin();
