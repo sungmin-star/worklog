@@ -7,8 +7,8 @@
 <link rel="preconnect" href="https://cdn.jsdelivr.net" crossorigin />
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard@v1.3.9/dist/web/variable/pretendardvariable.min.css" />
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
-<meta name="theme-color" content="#faf7f2" media="(prefers-color-scheme: light)" />
-<meta name="theme-color" content="#1f1b17" media="(prefers-color-scheme: dark)" />
+<meta name="theme-color" content="#f5f2ea" media="(prefers-color-scheme: light)" />
+<meta name="theme-color" content="#14212f" media="(prefers-color-scheme: dark)" />
 <!-- PWA: 홈 화면 설치 + 오프라인 -->
 <link rel="manifest" href="./manifest.json" />
 <meta name="apple-mobile-web-app-capable" content="yes" />
@@ -29,70 +29,70 @@
      단일 파일 · Vanilla JS · 종이 노트 분위기
      ============================================================ */
 
-  /* ── Warm Light : 기본(라이트) 팔레트 ─────────────────────── */
+  /* ── L'Heure Bleue Light : 크림 + 네이비 + 골드 ───────────── */
   :root{
-    --bg:#faf7f2;
-    --surface:#ffffff;
-    --surface-2:#f1ece3;
-    --text:#2b2724;
-    --muted:#8a8178;
-    --line:#e7e0d4;
-    --line-strong:#d6ccbb;
-    --accent:#c2683e;
-    --accent-hover:#b25731;
-    --accent-text:#ffffff;
-    --accent-soft:rgba(194,104,62,0.12);
+    --bg:#f5f2ea;
+    --surface:#fffefb;
+    --surface-2:#ece6d9;
+    --text:#1f3354;
+    --muted:#717c8d;
+    --line:#e2dccd;
+    --line-strong:#cec5b2;
+    --accent:#bf9233;
+    --accent-hover:#a87c26;
+    --accent-text:#1f3354;
+    --accent-soft:rgba(191,146,51,0.16);
     --ok:#5c8a5a;
     --danger:#c0473a;
-    --shadow:0 1px 2px rgba(60,40,20,0.05), 0 8px 28px rgba(60,40,20,0.07);
-    --shadow-lg:0 18px 56px rgba(40,25,10,0.16);
+    --shadow:0 1px 2px rgba(31,51,84,0.05), 0 8px 28px rgba(31,51,84,0.08);
+    --shadow-lg:0 18px 56px rgba(20,33,61,0.16);
     --ring:0 0 0 4px var(--accent-soft);
-    --blur-bg:rgba(255,253,250,0.72);
+    --blur-bg:rgba(245,242,234,0.78);
     --radius:18px;
     --radius-sm:12px;
     --display:-apple-system, BlinkMacSystemFont, "SF Pro Display", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
     --sans:-apple-system, BlinkMacSystemFont, "SF Pro Text", "Pretendard Variable", Pretendard, "Apple SD Gothic Neo", "Noto Sans KR", system-ui, sans-serif;
   }
 
-  /* ── Warm Dark : 순흑이 아닌 따뜻한 차콜 ───────────────────── */
+  /* ── L'Heure Bleue Dark : 딥 네이비(블루아워) + 골드 ───────── */
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]){
-      --bg:#1f1b17;
-      --surface:#2a2521;
-      --surface-2:#342e28;
-      --text:#ede6db;
-      --muted:#a89e90;
-      --line:#3d362e;
-      --line-strong:#574e43;
-      --accent:#d98a5f;
-      --accent-hover:#e49b72;
-      --accent-text:#1f1b17;
-      --accent-soft:rgba(217,138,95,0.20);
+      --bg:#14212f;
+      --surface:#1d2d40;
+      --surface-2:#26384e;
+      --text:#ece5d6;
+      --muted:#95a1b4;
+      --line:#2d3f55;
+      --line-strong:#41566f;
+      --accent:#d4a647;
+      --accent-hover:#e2b75e;
+      --accent-text:#14212f;
+      --accent-soft:rgba(212,166,71,0.20);
       --ok:#7fb47c;
       --danger:#e0685b;
-      --shadow:0 1px 2px rgba(0,0,0,0.4), 0 10px 32px rgba(0,0,0,0.5);
+      --shadow:0 1px 2px rgba(0,0,0,0.45), 0 10px 32px rgba(0,0,0,0.5);
       --shadow-lg:0 18px 56px rgba(0,0,0,0.6);
-      --blur-bg:rgba(42,37,33,0.72);
+      --blur-bg:rgba(20,33,47,0.74);
     }
   }
   /* 사용자가 직접 다크를 선택한 경우(시스템 설정과 무관) */
   :root[data-theme="dark"]{
-    --bg:#1f1b17;
-    --surface:#2a2521;
-    --surface-2:#342e28;
-    --text:#ede6db;
-    --muted:#a89e90;
-    --line:#3d362e;
-    --line-strong:#574e43;
-    --accent:#d98a5f;
-    --accent-hover:#e49b72;
-    --accent-text:#1f1b17;
-    --accent-soft:rgba(217,138,95,0.20);
+    --bg:#14212f;
+    --surface:#1d2d40;
+    --surface-2:#26384e;
+    --text:#ece5d6;
+    --muted:#95a1b4;
+    --line:#2d3f55;
+    --line-strong:#41566f;
+    --accent:#d4a647;
+    --accent-hover:#e2b75e;
+    --accent-text:#14212f;
+    --accent-soft:rgba(212,166,71,0.20);
     --ok:#7fb47c;
     --danger:#e0685b;
-    --shadow:0 1px 2px rgba(0,0,0,0.4), 0 10px 32px rgba(0,0,0,0.5);
+    --shadow:0 1px 2px rgba(0,0,0,0.45), 0 10px 32px rgba(0,0,0,0.5);
     --shadow-lg:0 18px 56px rgba(0,0,0,0.6);
-    --blur-bg:rgba(42,37,33,0.72);
+    --blur-bg:rgba(20,33,47,0.74);
   }
 
   *{box-sizing:border-box}
@@ -127,29 +127,22 @@
 
   /* ---------- Header ---------- */
   header.top{
-    position:relative;
     display:flex;
     align-items:center;
-    justify-content:center;
+    justify-content:space-between;
     gap:16px;
-    min-height:46px;
     margin-bottom:10px;
   }
   h1.title{ margin:0; line-height:0; }
   .brand-logo{
     display:block;
-    width:210px;
-    max-width:60%;
+    width:158px;
+    max-width:48vw;
     height:auto;
-    border-radius:14px;
+    border-radius:12px;
   }
-  @media (max-width:600px){ .brand-logo{ width:175px; } }
-  .header-actions{
-    position:absolute;
-    right:0; top:50%;
-    transform:translateY(-50%);
-    display:flex; align-items:center; gap:8px;
-  }
+  @media (max-width:600px){ .brand-logo{ width:132px; } }
+  .header-actions{ display:flex; align-items:center; gap:8px; }
   .menu-wrap{ position:relative; }
   .icon-btn{
     width:38px; height:38px;
