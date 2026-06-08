@@ -3722,8 +3722,8 @@ function jarvisPush(role, html){
 }
 function jarvisGreet(){
   jarvisPush("bot",
-    `안녕하세요, 자비스예요. 기록과 프로젝트 안에서 찾아 답해드려요.<br>` +
-    `<span class="jv-ex">예) “지난주 한 일 요약”, “#버그 몇 건”, “6월 9일 뭐했어”, “남은 할 일”, “진행중인 프로젝트”, “연속 며칠”</span>`);
+    `안녕하세요, 자비스예요. 기록·프로젝트를 바탕으로 같이 생각해드려요.<br>` +
+    `<span class="jv-ex">예) “지난주 한 일 요약”, “이번달 어땠어?”, “이 프로젝트 어떻게 진행할까?”, “남은 할 일”, “#버그 몇 건”</span>`);
 }
 
 /* 날짜 범위 해석 → {from,to,label} | null */
@@ -3795,6 +3795,22 @@ function jarvisAiPrompt(q, list){
   return `너는 내 작업일지 비서야. 아래 "내 기록"만 근거로 한국어로 간결하고 구체적으로 답해줘. 기록에 없는 내용은 추측하지 말고 모른다고 해.\n\n[질문]\n${q}\n\n[내 기록 ${list.length}건]\n${body}`;
 }
 
+// 자비스가 쓸 클로드 모델: "sonnet"(추천) | "haiku" | "opus"
+const JARVIS_MODEL = "sonnet";
+// 서버 함수(jarvis)로 진짜 클로드 호출. 키 미설정·오프라인·게스트면 null 반환 → 폴백
+async function callJarvisBackend(question, entries){
+  if (!isCloud() || !sb) return null;
+  try {
+    const payload = (entries || []).slice(0, 60).map(e => ({ date: e.date, text: e.text || "" }));
+    const { data, error } = await sb.functions.invoke("jarvis", {
+      body: { question, entries: payload, model: JARVIS_MODEL },
+    });
+    if (error) return null;
+    if (data && typeof data.text === "string" && data.text.trim()) return data.text.trim();
+    return null;   // {error:"NO_KEY"} 등 → 폴백
+  } catch(_){ return null; }
+}
+
 async function jarvisAsk(q){
   if (jarvisBusy) return;
   q = (q || "").trim();
@@ -3808,7 +3824,7 @@ async function jarvisAsk(q){
     const tags = jarvisFindTags(q);
     const terms = jarvisKeywords(q);
     const wantStat = /몇|개수|건수|장|며칠|연속|통계|얼마/.test(q);
-    const wantAI = /요약|정리|분석|회고|돌아|총평|인사이트|패턴|어땠|평가/.test(q);
+    const wantAI = /요약|정리|분석|회고|돌아|총평|인사이트|패턴|어땠|평가|\?|어떻게|어때|왜|추천|방법|아이디어|계획|좋을까|할까|골라|비교|설명|가르쳐|어떤\s*게|뭐가\s*좋|도와/.test(q);
 
     // ── 프로젝트 / 할일 질문 ──
     if (/프로젝트|할\s*일|할일|투두|todo|체크리스트|미완|안\s*끝|남은\s*(거|일|할|것)|해야|다음\s*할/.test(q)){
@@ -3873,22 +3889,30 @@ async function jarvisAsk(q){
       jarvisBusy = false; return;
     }
 
-    // 요약·분석 → AI(가능하면) / 복사 폴백
+    // 자유 질문·요약·분석 → ① 백엔드(진짜 클로드) ② claude.ai ③ 복사 폴백
     if (wantAI){
-      if (!list.length){ jarvisPush("bot", `${escapeHtml(scope)}에 해당하는 기록이 없어요.`); jarvisBusy = false; return; }
       const prompt = jarvisAiPrompt(q, list);
+      const wait = jarvisPush("bot", `<span class="jv-think"><span class="spinner"></span>생각 중…${list.length ? ` (${escapeHtml(scope)} · ${list.length}건)` : ""}</span>`);
+      // ① 서버 함수로 진짜 클로드 호출 (키 설정돼 있으면 동작)
+      const backendText = await callJarvisBackend(q, list);
+      if (backendText){
+        wait.innerHTML = jarvisFormat(backendText) + (list.length ? jarvisRowsHtml(list) : "");
+        $jarvisLog.scrollTop = $jarvisLog.scrollHeight; jarvisBusy = false; return;
+      }
+      // ② claude.ai 아티팩트
       if (window.claude && typeof window.claude.complete === "function"){
-        const wait = jarvisPush("bot", `<span class="jv-think"><span class="spinner"></span>생각 중… (${escapeHtml(scope)} · ${list.length}건)</span>`);
         try {
           const out = await window.claude.complete(prompt);
-          wait.innerHTML = jarvisFormat(String(out||"").trim() || "(답이 비어 있어요)") + jarvisRowsHtml(list);
-        } catch(err){
-          console.error(err);
-          wait.innerHTML = jarvisCopyFallback(prompt, list);
-        }
+          wait.innerHTML = jarvisFormat(String(out||"").trim() || "(답이 비어 있어요)") + (list.length ? jarvisRowsHtml(list) : "");
+          $jarvisLog.scrollTop = $jarvisLog.scrollHeight; jarvisBusy = false; return;
+        } catch(err){ console.error(err); }
+      }
+      // ③ 복사 폴백
+      if (!list.length){
+        wait.innerHTML = `이 질문엔 아직 바로 답하기 어려워요. <b>메뉴→설정에서 AI를 연동</b>하면 제가 직접 생각해서 답해드려요.`;
       } else {
         copyText(prompt);
-        jarvisPush("bot", jarvisCopyFallback(prompt, list));
+        wait.innerHTML = jarvisCopyFallback(prompt, list);
       }
       $jarvisLog.scrollTop = $jarvisLog.scrollHeight;
       jarvisBusy = false; return;
