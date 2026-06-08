@@ -2422,6 +2422,17 @@ $thumbs.addEventListener("click", (e) => {
 
 // 날짜 입력칸 타이핑 → 즉시 인식
 $dateText.addEventListener("input", recognizeDateField);
+// 달력 아이콘을 누르면 네이티브 날짜 선택기를 확실히 띄움
+// (투명 오버레이만으론 일부 브라우저·iOS에서 안 열리는 문제 → showPicker 명시 호출)
+const $dateCal = document.querySelector(".date-cal");
+if ($dateCal){
+  $dateCal.addEventListener("click", (e) => {
+    if (typeof $datePick.showPicker !== "function") return; // 미지원 시 기본 오버레이 동작
+    e.preventDefault();
+    try { $datePick.showPicker(); }
+    catch(_){ try { $datePick.focus(); $datePick.click(); } catch(__){} }
+  });
+}
 // 달력에서 고르면 텍스트 칸에 반영 후 인식
 $datePick.addEventListener("change", () => {
   if ($datePick.value){
@@ -3123,7 +3134,7 @@ function monthRange(ym, label){
   return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2,"0")}`, label };
 }
 
-const JV_STOP = new Set(["요약","정리","분석","회고","총평","해줘","해","보여줘","보여","찾아줘","찾아","찾기","검색","알려줘","알려","뭐","무엇","어떤","했어","한","일","기록","좀","줘","대해","관련","들","것","개","건","장","몇","며칠","통계","얼마나","얼마","및","그리고","나","내","제","저","이번","지난","저번","최근","올해","금년","주","달","월"]);
+const JV_STOP = new Set(["요약","정리","분석","회고","총평","해줘","해","보여줘","보여","찾아줘","찾아","찾기","검색","알려줘","알려","뭐","무엇","어떤","했어","한","일","기록","좀","줘","대해","관련","들","것","개","건","장","몇","며칠","통계","얼마나","얼마","및","그리고","나","내","제","저","이번","지난","저번","최근","올해","금년","주","달","월","한일","할일","한것","한거","했던","했던일","했던것","뭐한","뭐했","뭐했어","무슨","일들","것들"]);
 function jarvisKeywords(q){
   return q.replace(/[#"']/g," ")
     // 상대·절대 날짜 표현 제거(검색어로 오인 방지)
