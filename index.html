@@ -363,6 +363,86 @@
     animation:fadeIn .3s ease both;
   }
 
+  /* ---------- Markdown 본문 서식 ---------- */
+  .entry-text .md-h{ font-weight:700; }
+  .entry-text .md-h1{ font-size:1.18em; }
+  .entry-text .md-h2{ font-size:1.07em; }
+  .entry-text .md-h3{ font-size:1em; color:var(--muted); }
+  .entry-text .md-q{ display:inline-block; border-left:3px solid var(--line-strong); padding-left:10px; color:var(--muted); }
+  .entry-text strong{ font-weight:700; }
+  .entry-text em{ font-style:italic; }
+  .entry-text code{ background:var(--surface-2); padding:1px 6px; border-radius:5px; font-size:.9em; font-family:ui-monospace,SFMono-Regular,Menlo,monospace; }
+  .entry-text .wikilink{ color:var(--accent); font-weight:600; cursor:pointer; text-decoration:none; border-bottom:1px dashed var(--accent); }
+  .entry-text .wikilink:hover{ opacity:.78; }
+
+  /* ---------- [[링크]] 백링크 배너 ---------- */
+  .link-banner{
+    display:flex; align-items:center; gap:8px;
+    background:var(--surface-2); border:1px solid var(--line);
+    border-radius:var(--radius); padding:10px 14px; margin-bottom:16px;
+    font-size:14px; color:var(--text);
+  }
+  .link-banner .link-clear{
+    margin-left:auto; border:none; background:transparent; color:var(--muted);
+    font-size:15px; cursor:pointer; padding:2px 8px; border-radius:7px;
+  }
+  .link-banner .link-clear:hover{ background:var(--line); color:var(--text); }
+
+  /* ---------- 자비스 (자동응답 비서) ---------- */
+  .jarvis-fab{
+    position:fixed; right:18px; bottom:18px; z-index:150;
+    width:54px; height:54px; border-radius:50%;
+    border:none; background:var(--accent); color:var(--accent-text);
+    font-size:22px; box-shadow:var(--shadow-lg); cursor:pointer;
+    display:none; align-items:center; justify-content:center;
+    transition:transform .12s ease;
+  }
+  body.app-ready .jarvis-fab{ display:inline-flex; }
+  body.modal-open .jarvis-fab{ display:none; }
+  .jarvis-fab:hover{ transform:scale(1.06); }
+  .jarvis-fab:active{ transform:scale(0.94); }
+
+  .jarvis-scrim{ align-items:flex-end; justify-content:flex-end; padding:20px; }
+  .jarvis-panel{
+    width:min(420px,100%); height:min(620px,84vh);
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:18px; box-shadow:var(--shadow-lg); overflow:hidden;
+    animation:fadeIn .22s ease both;
+  }
+  .jarvis-head{
+    display:flex; align-items:center; justify-content:space-between;
+    padding:14px 16px; border-bottom:1px solid var(--line); font-weight:700;
+  }
+  .jarvis-x{ border:none; background:transparent; color:var(--muted); font-size:15px; cursor:pointer; padding:4px 9px; border-radius:8px; }
+  .jarvis-x:hover{ background:var(--surface-2); color:var(--text); }
+  .jarvis-log{ flex:1; overflow-y:auto; padding:14px 14px 6px; display:flex; flex-direction:column; gap:10px; }
+  .jv-msg{ max-width:88%; padding:10px 13px; border-radius:14px; font-size:14px; line-height:1.6; word-break:break-word; }
+  .jv-me{ align-self:flex-end; background:var(--accent); color:var(--accent-text); border-bottom-right-radius:4px; }
+  .jv-bot{ align-self:flex-start; background:var(--surface-2); color:var(--text); border-bottom-left-radius:4px; }
+  .jv-ex{ color:var(--muted); font-size:12.5px; }
+  .jv-think{ display:inline-flex; align-items:center; gap:8px; color:var(--muted); }
+  .jv-rows{ display:flex; flex-direction:column; gap:6px; margin-top:9px; }
+  .jv-row{
+    text-align:left; border:1px solid var(--line); background:var(--surface);
+    border-radius:10px; padding:8px 11px; font-size:13px; cursor:pointer;
+    display:flex; flex-direction:column; gap:2px; color:var(--text);
+  }
+  .jv-row:hover{ border-color:var(--accent); }
+  .jv-row b{ color:var(--accent); font-size:12px; }
+  .jv-row span{ color:var(--muted); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .jv-more{ color:var(--muted); font-size:12px; padding:2px 4px; }
+  .jarvis-input{ display:flex; gap:8px; padding:12px 14px; border-top:1px solid var(--line); }
+  .jarvis-input input{ flex:1; border:1px solid var(--line); background:var(--surface-2); border-radius:999px; padding:10px 16px; font-size:14px; outline:none; color:var(--text); }
+  .jarvis-input input:focus{ border-color:var(--accent); }
+  .jarvis-send{ border:none; background:var(--accent); color:var(--accent-text); width:42px; height:42px; border-radius:50%; font-size:15px; cursor:pointer; flex-shrink:0; }
+  .jarvis-send:active{ transform:scale(0.94); }
+  @media (max-width:600px){
+    .jarvis-scrim{ justify-content:center; padding:0; }
+    .jarvis-panel{ width:100%; height:86vh; border-radius:18px 18px 0 0; align-self:flex-end; }
+    .jarvis-fab{ right:14px; bottom:14px; }
+  }
+
   /* ---------- Entries : 읽기 우선 타임라인 피드 ---------- */
   .entries{ display:flex; flex-direction:column; gap:18px; }
 
@@ -960,6 +1040,7 @@
           <svg viewBox="0 0 24 24" fill="none" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="1.5"></circle><circle cx="12" cy="12" r="1.5"></circle><circle cx="12" cy="19" r="1.5"></circle></svg>
         </button>
         <div class="menu" id="menu" role="menu">
+          <button id="dailyBtn" role="menuitem">📅 오늘 일지</button>
           <button id="summaryBtn" role="menuitem">✦ AI로 요약하기</button>
           <div class="divider"></div>
           <button id="exportBtn" role="menuitem">백업 내려받기</button>
@@ -981,7 +1062,7 @@
     <div class="controls">
       <label class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-        <input id="searchInput" type="text" inputmode="search" enterkeyhint="search" placeholder="기록 검색" aria-label="기록 본문 검색" autocomplete="off" />
+        <input id="searchInput" type="text" inputmode="search" enterkeyhint="search" placeholder="검색 · tag:태그 -제외 &quot;정확히&quot;" aria-label="기록 본문 검색 (연산자: tag:태그, -제외, 따옴표 구문)" autocomplete="off" />
       </label>
       <button class="btn new" id="newBtn" aria-label="새 기록 작성">새 기록</button>
     </div>
@@ -1041,6 +1122,22 @@
           <button class="btn" id="summaryClose">닫기</button>
         </div>
       </div>
+    </div>
+  </div>
+
+  <!-- Jarvis (자동응답 비서) -->
+  <button class="jarvis-fab" id="jarvisFab" aria-label="자비스 열기" title="자비스">✦</button>
+  <div class="scrim jarvis-scrim" id="jarvisScrim" aria-hidden="true">
+    <div class="jarvis-panel" role="dialog" aria-modal="true" aria-label="자비스">
+      <div class="jarvis-head">
+        <span>✦ 자비스</span>
+        <button class="jarvis-x" id="jarvisClose" type="button" aria-label="닫기">✕</button>
+      </div>
+      <div class="jarvis-log" id="jarvisLog"></div>
+      <form class="jarvis-input" id="jarvisForm">
+        <input id="jarvisInput" type="text" placeholder="예: 지난주 #회의 요약해줘" autocomplete="off" enterkeyhint="send" />
+        <button class="jarvis-send" type="submit" aria-label="보내기">➤</button>
+      </form>
     </div>
   </div>
 
@@ -1175,6 +1272,7 @@ const state = {
   search: "",
   monthFilter: null,   // "YYYY-MM" or null
   tagFilter: null,     // "#태그" 필터 (태그명, # 제외) or null
+  linkFilter: null,    // [[위키링크]] 필터 (링크명) or null
   editing: null,       // entry being edited, or null when creating
   draftImages: [],     // dataURLs in editor
 };
@@ -1612,6 +1710,7 @@ async function startApp(user){
   try { await migrateLocalToCloud(); } catch(e){ console.error(e); }
   try { await loadAll(); } catch(e){ console.error(e); showToast("기록을 불러오지 못했어요"); }
   render();
+  document.body.classList.add("app-ready");   // 자비스 FAB 표시
   updateSyncIndicator();
   flushSyncQueue();           // 지난 오프라인 변경분이 있으면 동기화
 }
@@ -1907,12 +2006,55 @@ function extractTags(text){
   return out;
 }
 
+// 본문에서 [[위키링크]] 추출
+const LINK_RE = /\[\[([^\[\]\n]+)\]\]/g;
+function extractLinks(text){
+  if (!text) return [];
+  const out = [];
+  let m;
+  LINK_RE.lastIndex = 0;
+  while ((m = LINK_RE.exec(text))){
+    const t = m[1].trim();
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
+
+/* 검색 연산자 파서: tag:버그  -제외어  "정확한 구문"  일반어(AND) */
+function parseSearch(q){
+  const out = { inc: [], exc: [], tags: [] };
+  const re = /-?"[^"]+"|-?[^\s]+/g;
+  let m;
+  while ((m = re.exec(q || ""))){
+    let t = m[0], neg = false;
+    if (t[0] === "-"){ neg = true; t = t.slice(1); }
+    if (t[0] === '"' && t[t.length - 1] === '"') t = t.slice(1, -1);
+    t = t.trim();
+    if (!t) continue;
+    if (/^tag:/i.test(t)){ out.tags.push(t.slice(4).replace(/^#/, "").toLowerCase()); continue; }
+    (neg ? out.exc : out.inc).push(t.toLowerCase());
+  }
+  return out;
+}
+function matchSearch(entry, parsed){
+  const text = (entry.text || "").toLowerCase();
+  for (const t of parsed.inc) if (!text.includes(t)) return false;
+  for (const t of parsed.exc) if (text.includes(t)) return false;
+  if (parsed.tags.length){
+    const tg = extractTags(entry.text).map(s => s.toLowerCase());
+    for (const t of parsed.tags) if (!tg.includes(t)) return false;
+  }
+  return true;
+}
+
 function filteredEntries(){
-  const q = state.search.trim().toLowerCase();
+  const parsed = parseSearch(state.search.trim());
+  const hasSearch = parsed.inc.length || parsed.exc.length || parsed.tags.length;
   return state.entries.filter(e => {
     if (state.monthFilter && !e.date.startsWith(state.monthFilter)) return false;
     if (state.tagFilter && !extractTags(e.text).includes(state.tagFilter)) return false;
-    if (q && !(e.text || "").toLowerCase().includes(q)) return false;
+    if (state.linkFilter && !extractLinks(e.text).includes(state.linkFilter)) return false;
+    if (hasSearch && !matchSearch(e, parsed)) return false;
     return true;
   });
 }
@@ -2002,17 +2144,24 @@ function renderMonths(){
   $months.style.display = months.length === 0 ? "none" : "";
 }
 
+// [[링크]] 필터 활성 시 상단 배너(백링크 보기)
+function linkBannerHtml(count){
+  if (!state.linkFilter) return "";
+  return `<div class="link-banner">🔗 <b>[[${escapeHtml(state.linkFilter)}]]</b> 언급한 기록 ${count}개` +
+    `<button class="link-clear" type="button" aria-label="링크 필터 해제">✕</button></div>`;
+}
+
 function renderEntries(){
   const list = filteredEntries();
+  const banner = linkBannerHtml(list.length);
   if (list.length === 0){
-    const isEmpty = state.entries.length === 0;
-    const isFilter = !!(state.search || state.monthFilter || state.tagFilter);
-    $entries.innerHTML = `
+    const isFilter = !!(state.search || state.monthFilter || state.tagFilter || state.linkFilter);
+    $entries.innerHTML = banner + `
       <div class="empty">
-        <div class="e-title">${isFilter ? "검색 결과가 없어요" : "오늘의 첫 기록"}</div>
+        <div class="e-title">${isFilter ? "결과가 없어요" : "오늘의 첫 기록"}</div>
         <div class="e-sub">${
           isFilter
-            ? "다른 키워드나 월을 선택해보세요"
+            ? "다른 키워드·태그·월을 선택해보세요"
             : "오른쪽 위 “새 기록”에서 시작해보세요"
         }</div>
       </div>`;
@@ -2020,7 +2169,7 @@ function renderEntries(){
   }
   const q = state.search.trim();
   // 월이 바뀔 때마다 구분선을 끼워 스캔하기 쉽게
-  let html = "";
+  let html = banner;
   let lastMonth = null;
   for (const e of list){
     const ym = e.date.slice(0, 7);
@@ -2050,7 +2199,7 @@ function renderEntry(e, query){
 
   let textBlock = "";
   if (e.text && e.text.trim()){
-    textBlock = `<div class="entry-text is-clamped" data-id="${escapeHtml(e.id)}">${highlightText(e.text, query)}</div>` +
+    textBlock = `<div class="entry-text is-clamped" data-id="${escapeHtml(e.id)}">${renderBody(e.text, query)}</div>` +
       `<button class="more-btn" type="button" data-more="${escapeHtml(e.id)}" hidden>계속 읽기</button>`;
   }
 
@@ -2095,19 +2244,40 @@ function enhanceClamps(){
   });
 }
 
-function highlightText(text, query){
-  let safe = escapeHtml(text);
-  // 1) 본문 안의 #태그 색상 강조 (앞이 줄머리/공백/괄호일 때만)
-  safe = safe.replace(/(^|[\s(])#([0-9A-Za-z_\-가-힣ㄱ-ㆎ]+)/g, '$1<span class="hash">#$2</span>');
-  // 2) 검색어 하이라이트 — HTML 태그(<...>) 바깥의 텍스트에만 적용해 마크업이 깨지지 않게
-  if (query){
-    const q = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-    const re = new RegExp(q, "gi");
-    safe = safe.split(/(<[^>]*>)/).map(part =>
-      part.charAt(0) === "<" ? part : part.replace(re, m => `<mark>${m}</mark>`)
-    ).join("");
-  }
-  return safe;
+/* 한 줄의 인라인 마크다운(이미 escape 된 텍스트 위에서): 코드/굵게/기울임/[[링크]]/#태그 */
+function renderInlineMd(s){
+  s = s.replace(/`([^`]+)`/g, '<code>$1</code>');
+  s = s.replace(/\*\*([^*\n]+)\*\*/g, '<strong>$1</strong>');
+  s = s.replace(/(^|[^*])\*([^*\n]+)\*(?!\*)/g, '$1<em>$2</em>');
+  s = s.replace(/\[\[([^\[\]\n]+)\]\]/g, (m, n) => {
+    const name = n.trim();
+    return `<a class="wikilink" data-link="${name}">${name}</a>`;
+  });
+  s = s.replace(/(^|[\s(])#([0-9A-Za-z_\-가-힣ㄱ-ㆎ]+)/g, '$1<span class="hash">#$2</span>');
+  return s;
+}
+/* HTML 태그(<...>) 바깥의 텍스트에만 검색어 하이라이트 적용 (마크업·XSS 안전) */
+function highlightSegments(html, terms){
+  const list = (terms || []).filter(Boolean);
+  if (!list.length) return html;
+  const re = new RegExp(list.map(t => t.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|"), "gi");
+  return html.split(/(<[^>]*>)/).map(p =>
+    p.charAt(0) === "<" ? p : p.replace(re, m => `<mark>${m}</mark>`)
+  ).join("");
+}
+/* 본문 렌더: 블록(제목/목록/인용) + 인라인 마크다운 + 검색 하이라이트 */
+function renderBody(text, query){
+  const hlTerms = query ? parseSearch(query).inc.map(t => escapeHtml(t)) : [];
+  const lines = escapeHtml(text).split("\n");
+  const html = lines.map(line => {
+    let m, cls = "", inner = line;
+    if ((m = line.match(/^(#{1,3})\s+(.*)$/))){ cls = "md-h md-h" + m[1].length; inner = m[2]; }
+    else if ((m = line.match(/^\s*[-*]\s+(.*)$/))){ cls = "md-li"; inner = m[1]; }
+    else if ((m = line.match(/^\s*&gt;\s?(.*)$/))){ cls = "md-q"; inner = m[1]; }
+    inner = renderInlineMd(inner);
+    return cls ? `<span class="${cls}">${inner}</span>` : inner;
+  }).join("\n");
+  return highlightSegments(html, hlTerms);
 }
 
 /* ============================================================
@@ -2158,14 +2328,14 @@ const $fileInput = document.getElementById("fileInput");
 const $thumbs = document.getElementById("thumbs");
 const $deleteBtn = document.getElementById("deleteBtn");
 
-function openEditor(entry){
+function openEditor(entry, opts){
   state.editing = entry || null;
   state.draftImages = entry ? [...(entry.images || [])] : [];
   $editorTitle.textContent = entry ? "기록 수정" : "새 기록";
   const iso = entry ? entry.date : todayISO();
   $dateText.value = iso;
   $datePick.value = iso;
-  $textInput.value = entry ? (entry.text || "") : "";
+  $textInput.value = entry ? (entry.text || "") : ((opts && opts.prefill) || "");
   lastAutoDate = iso;
   recognizeDateField();
   $deleteBtn.hidden = !entry;
@@ -2675,6 +2845,20 @@ $entries.addEventListener("click", (e) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
+  // 2-3) [[위키링크]] 클릭 → 해당 링크를 언급한 기록만 보기(백링크)
+  const linkEl = e.target.closest(".wikilink[data-link]");
+  if (linkEl){
+    state.linkFilter = linkEl.dataset.link;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  // 2-4) 링크 필터 배너의 해제(✕)
+  if (e.target.closest(".link-clear")){
+    state.linkFilter = null;
+    render();
+    return;
+  }
   // 3) 사진 확대 (라이트박스, 좌우 넘기기)
   const img = e.target.closest(".entry-photos img");
   if (img){
@@ -2709,12 +2893,25 @@ $tagbar.addEventListener("click", (e) => {
 
 document.getElementById("newBtn").addEventListener("click", () => openEditor(null));
 
+/* ── 일일 노트(오늘 일지) + 템플릿 ─────────────────────────── */
+const DAILY_TEMPLATE = "## 한 일\n- \n\n## 막힌 점\n- \n\n## 내일 할 일\n- ";
+function openDailyNote(){
+  setMenu(false);
+  const t = todayISO();
+  const existing = state.entries.find(e => e.date === t);
+  if (existing){ openEditor(existing); showToast("오늘 일지를 열었어요"); }
+  else { openEditor(null, { prefill: DAILY_TEMPLATE }); }
+}
+const $dailyBtn = document.getElementById("dailyBtn");
+if ($dailyBtn) $dailyBtn.addEventListener("click", openDailyNote);
+
 /* ============================================================
    Global shortcuts & scrim close
    ============================================================ */
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape"){
     if ($lightbox.dataset.open === "true") { closeLightbox(); return; }
+    if ($jarvisScrim.dataset.open === "true") { closeJarvis(); return; }
     if ($confirmScrim.dataset.open === "true") { closeConfirm(); return; }
     if ($summaryScrim.dataset.open === "true") { closeSummary(); return; }
     if ($editorScrim.dataset.open === "true") { closeEditor(); return; }
@@ -2833,6 +3030,204 @@ $summaryCopy.addEventListener("click", async () => {
   showToast(ok ? "복사했어요" : "복사하지 못했어요");
 });
 document.getElementById("summaryBtn").addEventListener("click", runSummary);
+
+/* ============================================================
+   자비스 — 내 기록 안에서 자동응답하는 비서
+   · 날짜·태그·키워드를 알아듣고 로컬에서 즉답(통계/찾기)
+   · 요약·분석은 claude.ai에서 열면 AI 직접 호출, 아니면 복사 폴백
+   ============================================================ */
+const $jarvisFab = document.getElementById("jarvisFab");
+const $jarvisScrim = document.getElementById("jarvisScrim");
+const $jarvisLog = document.getElementById("jarvisLog");
+const $jarvisForm = document.getElementById("jarvisForm");
+const $jarvisInput = document.getElementById("jarvisInput");
+let jarvisBusy = false;
+
+function openJarvis(){
+  $jarvisScrim.dataset.open = "true";
+  $jarvisScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  if (!$jarvisLog.children.length) jarvisGreet();
+  setTimeout(() => $jarvisInput.focus(), 60);
+}
+function closeJarvis(){
+  $jarvisScrim.dataset.open = "false";
+  $jarvisScrim.setAttribute("aria-hidden", "true");
+  if ($editorScrim.dataset.open !== "true") document.body.classList.remove("modal-open");
+}
+function jarvisPush(role, html){
+  const b = document.createElement("div");
+  b.className = "jv-msg jv-" + role;
+  b.innerHTML = html;
+  $jarvisLog.appendChild(b);
+  $jarvisLog.scrollTop = $jarvisLog.scrollHeight;
+  return b;
+}
+function jarvisGreet(){
+  jarvisPush("bot",
+    `안녕하세요, 자비스예요. 제 기록 안에서 찾아 답해드려요.<br>` +
+    `<span class="jv-ex">예) “지난주 한 일 요약”, “#버그 몇 건”, “회의 찾아줘”, “이번달 통계”, “연속 며칠”</span>`);
+}
+
+/* 날짜 범위 해석 → {from,to,label} | null */
+function jarvisDateRange(q){
+  const t = todayISO();
+  const wd = new Date(t.slice(0,4), Number(t.slice(5,7))-1, Number(t.slice(8,10))).getDay(); // 0=일
+  const monOffset = (wd + 6) % 7; // 이번 주 월요일까지 뒤로
+  if (/그저께|그제/.test(q)) return { from: isoAddDays(t,-2), to: isoAddDays(t,-2), label: "그저께" };
+  if (/어제/.test(q)) return { from: isoAddDays(t,-1), to: isoAddDays(t,-1), label: "어제" };
+  if (/오늘|금일/.test(q)) return { from: t, to: t, label: "오늘" };
+  if (/지난\s*주|저번\s*주|전\s*주/.test(q)){ const mon = isoAddDays(t, -monOffset-7); return { from: mon, to: isoAddDays(mon,6), label: "지난주" }; }
+  if (/이번\s*주|금주|한\s*주/.test(q)){ const mon = isoAddDays(t, -monOffset); return { from: mon, to: t, label: "이번주" }; }
+  let m = q.match(/(?:최근|지난)\s*(\d{1,3})\s*일/);
+  if (m){ const n = Math.max(1, Number(m[1])); return { from: isoAddDays(t, -(n-1)), to: t, label: `최근 ${n}일` }; }
+  if (/지난\s*달|저번\s*달|전\s*달/.test(q)){ const d = new Date(t.slice(0,4), Number(t.slice(5,7))-1-1, 1); const ym = todayISOFrom(d).slice(0,7); return monthRange(ym, "지난달"); }
+  if (/이번\s*달|금월|이달/.test(q)) return monthRange(t.slice(0,7), "이번달");
+  m = q.match(/(\d{4})\s*[-.\/]\s*(\d{1,2})/) || q.match(/(\d{4})년\s*(\d{1,2})월/);
+  if (m){ const ym = m[1]+"-"+String(Number(m[2])).padStart(2,"0"); return monthRange(ym, formatMonth(ym)); }
+  m = q.match(/(?:^|\D)(\d{1,2})\s*월(?!\s*\d)/);
+  if (m){ const mm = String(Number(m[1])).padStart(2,"0"); const ym = t.slice(0,4)+"-"+mm; return monthRange(ym, formatMonth(ym)); }
+  if (/올해|금년/.test(q)){ const y = t.slice(0,4); return { from: y+"-01-01", to: y+"-12-31", label: y+"년" }; }
+  return null;
+}
+function monthRange(ym, label){
+  const [y, mo] = ym.split("-").map(Number);
+  const last = new Date(y, mo, 0).getDate();
+  return { from: `${ym}-01`, to: `${ym}-${String(last).padStart(2,"0")}`, label };
+}
+
+const JV_STOP = new Set(["요약","정리","분석","회고","총평","해줘","해","보여줘","보여","찾아줘","찾아","찾기","검색","알려줘","알려","뭐","무엇","어떤","했어","한","일","기록","좀","줘","대해","관련","들","것","개","건","장","몇","며칠","통계","얼마나","얼마","및","그리고","나","내","제","저","이번","지난","저번","최근","올해","금년","주","달","월"]);
+function jarvisKeywords(q){
+  return q.replace(/[#"']/g," ")
+    // 상대·절대 날짜 표현 제거(검색어로 오인 방지)
+    .replace(/오늘|금일|어제|그저께|그제|이번\s*주|지난\s*주|저번\s*주|전\s*주|금주|한\s*주|이번\s*달|지난\s*달|저번\s*달|전\s*달|이달|금월|올해|금년/g," ")
+    .replace(/(?:최근|지난)\s*\d+\s*일/g," ")
+    .replace(/\d{4}\s*[-.\/]?\s*\d{0,2}\s*월?/g," ")
+    .replace(/\d{1,2}\s*월/g," ")
+    .split(/[\s,.;]+/)
+    .map(s=>s.trim()).filter(s=>s && s.length>=2 && !JV_STOP.has(s));
+}
+function jarvisFindTags(q){
+  const tags = extractTags(q).map(s=>s.toLowerCase());
+  let m = q.match(/([0-9A-Za-z_\-가-힣ㄱ-ㆎ]+)\s*태그/);
+  if (m && !tags.includes(m[1].toLowerCase())) tags.push(m[1].toLowerCase());
+  return tags;
+}
+function jarvisRowsHtml(list){
+  const rows = list.slice(0, 12).map(e => {
+    const dl = formatDateLine(e.date);
+    const snip = (e.text || "").replace(/\s+/g," ").trim().slice(0, 46) || "(사진만)";
+    const ph = (e.images && e.images.length) ? ` 📷${e.images.length}` : "";
+    return `<button class="jv-row" type="button" data-open="${escapeHtml(e.id)}"><b>${escapeHtml(dl.full)}</b>${ph}<span>${escapeHtml(snip)}</span></button>`;
+  }).join("");
+  const more = list.length > 12 ? `<div class="jv-more">외 ${list.length - 12}건 더…</div>` : "";
+  return `<div class="jv-rows">${rows}${more}</div>`;
+}
+function jarvisAiPrompt(q, list){
+  const body = list.slice().sort((a,b)=> a.date<b.date?-1:a.date>b.date?1:0)
+    .map(e=>`■ ${e.date}\n${(e.text||"").trim()}`).join("\n\n");
+  return `너는 내 작업일지 비서야. 아래 "내 기록"만 근거로 한국어로 간결하고 구체적으로 답해줘. 기록에 없는 내용은 추측하지 말고 모른다고 해.\n\n[질문]\n${q}\n\n[내 기록 ${list.length}건]\n${body}`;
+}
+
+async function jarvisAsk(q){
+  if (jarvisBusy) return;
+  q = (q || "").trim();
+  if (!q) return;
+  jarvisBusy = true;
+  jarvisPush("me", escapeHtml(q));
+  $jarvisInput.value = "";
+
+  try {
+    const range = jarvisDateRange(q);
+    const tags = jarvisFindTags(q);
+    const terms = jarvisKeywords(q);
+    const wantStat = /몇|개수|건수|장|며칠|연속|통계|얼마/.test(q);
+    const wantAI = /요약|정리|분석|회고|돌아|총평|인사이트|패턴|어땠|평가/.test(q);
+
+    let list = state.entries.slice();
+    if (range) list = list.filter(e => e.date >= range.from && e.date <= range.to);
+    if (tags.length) list = list.filter(e => { const tg = extractTags(e.text).map(s=>s.toLowerCase()); return tags.every(t => tg.includes(t)); });
+    if (terms.length) list = list.filter(e => { const lc = (e.text||"").toLowerCase(); return terms.every(t => lc.includes(t.toLowerCase())); });
+    list.sort(sortEntries);
+
+    const scopeBits = [];
+    if (range) scopeBits.push(range.label);
+    if (tags.length) scopeBits.push(tags.map(t=>"#"+t).join(" "));
+    if (terms.length) scopeBits.push("‘"+terms.join(" ")+"’");
+    const scope = scopeBits.join(" · ") || "전체";
+
+    // 연속 며칠
+    if (/연속\s*(며칠|몇\s*일)|며칠\s*연속/.test(q)){
+      const s = currentStreak(state.entries);
+      jarvisPush("bot", s >= 1 ? `🔥 지금 <b>${s}일</b> 연속 기록 중이에요.` : `최근 연속 기록이 끊겼어요. 오늘 한 줄 남겨볼까요?`);
+      jarvisBusy = false; return;
+    }
+
+    // 요약·분석 → AI(가능하면) / 복사 폴백
+    if (wantAI){
+      if (!list.length){ jarvisPush("bot", `${escapeHtml(scope)}에 해당하는 기록이 없어요.`); jarvisBusy = false; return; }
+      const prompt = jarvisAiPrompt(q, list);
+      if (window.claude && typeof window.claude.complete === "function"){
+        const wait = jarvisPush("bot", `<span class="jv-think"><span class="spinner"></span>생각 중… (${escapeHtml(scope)} · ${list.length}건)</span>`);
+        try {
+          const out = await window.claude.complete(prompt);
+          wait.innerHTML = jarvisFormat(String(out||"").trim() || "(답이 비어 있어요)") + jarvisRowsHtml(list);
+        } catch(err){
+          console.error(err);
+          wait.innerHTML = jarvisCopyFallback(prompt, list);
+        }
+      } else {
+        copyText(prompt);
+        jarvisPush("bot", jarvisCopyFallback(prompt, list));
+      }
+      $jarvisLog.scrollTop = $jarvisLog.scrollHeight;
+      jarvisBusy = false; return;
+    }
+
+    // 통계
+    if (wantStat){
+      const days = new Set(list.map(e=>e.date)).size;
+      const photos = list.reduce((a,e)=>a+(e.images?.length||0),0);
+      jarvisPush("bot",
+        `${escapeHtml(scope)} 기록 <b>${list.length}</b>건 · <b>${days}</b>일 · 사진 <b>${photos}</b>장` +
+        (list.length ? jarvisRowsHtml(list) : ""));
+      jarvisBusy = false; return;
+    }
+
+    // 찾기(기본)
+    if (!list.length){
+      jarvisPush("bot", `${escapeHtml(scope)}에서 찾은 기록이 없어요. 다른 키워드나 기간으로 물어봐 주세요.`);
+    } else {
+      jarvisPush("bot", `${escapeHtml(scope)}에서 <b>${list.length}건</b> 찾았어요.` + jarvisRowsHtml(list));
+    }
+  } catch(err){
+    console.error(err);
+    jarvisPush("bot", "처리 중 문제가 생겼어요. 다시 물어봐 주세요.");
+  }
+  jarvisBusy = false;
+}
+function jarvisCopyFallback(prompt, list){
+  return `이 화면에서는 AI 답변을 바로 못 띄워요(claude.ai에서 열면 즉시 답해요).<br>` +
+    `<b>질문+기록을 복사했어요</b> — Claude 대화창에 붙여넣으면 답해줍니다.` + jarvisRowsHtml(list);
+}
+// 아주 가벼운 마크다운 → HTML (AI 답변 표시용)
+function jarvisFormat(t){
+  let s = escapeHtml(t);
+  s = s.replace(/\*\*([^*\n]+)\*\*/g,"<b>$1</b>");
+  s = s.replace(/^\s*[-*]\s+(.*)$/gm,"• $1");
+  return s.replace(/\n/g,"<br>");
+}
+
+$jarvisFab.addEventListener("click", openJarvis);
+document.getElementById("jarvisClose").addEventListener("click", closeJarvis);
+$jarvisScrim.addEventListener("click", (e) => { if (e.target === $jarvisScrim) closeJarvis(); });
+$jarvisForm.addEventListener("submit", (e) => { e.preventDefault(); jarvisAsk($jarvisInput.value); });
+$jarvisLog.addEventListener("click", (e) => {
+  const row = e.target.closest(".jv-row[data-open]");
+  if (!row) return;
+  const entry = state.entries.find(x => x.id === row.dataset.open);
+  if (entry){ closeJarvis(); openEditor(entry); }
+});
 
 /* ============================================================
    Theme toggle (라이트/다크 수동 전환, 선택값 저장)
@@ -3144,6 +3539,7 @@ $lockNowBtn.addEventListener("click", () => {
     showToast("저장된 기록을 불러오지 못했어요");
   }
   render();
+  document.body.classList.add("app-ready");
 })();
 </script>
 <script>
