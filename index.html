@@ -443,6 +443,56 @@
     .jarvis-fab{ right:14px; bottom:14px; }
   }
 
+  /* ---------- 프로젝트 + 할일 ---------- */
+  .proj-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
+  .proj-head h2{ margin:0; }
+  .proj-body{ max-height:62vh; overflow-y:auto; display:flex; flex-direction:column; gap:14px; }
+  .proj-empty{ text-align:center; color:var(--muted); padding:36px 10px; line-height:1.7; }
+  .proj-empty span{ font-size:13px; }
+  .proj-card{
+    border:1px solid var(--line); border-radius:14px; padding:16px 18px; background:var(--surface);
+  }
+  .proj-card.editing{ border-color:var(--accent); }
+  .proj-card-head{ display:flex; align-items:flex-start; justify-content:space-between; gap:10px; }
+  .proj-name{ font-size:16px; font-weight:700; color:var(--text); display:flex; align-items:center; gap:9px; flex-wrap:wrap; }
+  .proj-goal{ font-size:13.5px; color:var(--muted); margin-top:5px; }
+  .proj-status{
+    border:none; border-radius:999px; padding:3px 10px; font-size:11.5px; font-weight:600; cursor:pointer; color:#fff;
+  }
+  .proj-status.st-active{ background:var(--accent); color:var(--accent-text); }
+  .proj-status.st-paused{ background:var(--line-strong); color:var(--text); }
+  .proj-status.st-done{ background:var(--ok,#3a9d6e); color:#fff; }
+  .proj-card-actions{ display:flex; gap:4px; flex-shrink:0; }
+  .proj-mini{ border:none; background:transparent; font-size:14px; cursor:pointer; padding:4px 6px; border-radius:8px; line-height:1; }
+  .proj-mini:hover{ background:var(--surface-2); }
+  .proj-progress{ display:flex; align-items:center; gap:10px; margin:12px 0 6px; }
+  .proj-bar{ flex:1; height:7px; background:var(--surface-2); border-radius:999px; overflow:hidden; }
+  .proj-bar span{ display:block; height:100%; background:var(--accent); border-radius:999px; transition:width .25s ease; }
+  .proj-prog-num{ font-size:12px; color:var(--muted); white-space:nowrap; }
+  .todo-list{ display:flex; flex-direction:column; gap:2px; margin-top:6px; }
+  .todo-row{ display:flex; align-items:center; gap:9px; padding:6px 2px; }
+  .todo-check{ border:none; background:transparent; font-size:18px; cursor:pointer; line-height:1; color:var(--accent); padding:0; flex-shrink:0; }
+  .todo-text{ flex:1; font-size:14.5px; color:var(--text); word-break:break-word; }
+  .todo-row.is-done .todo-text{ text-decoration:line-through; color:var(--muted); }
+  .todo-del{ border:none; background:transparent; color:var(--muted); cursor:pointer; font-size:13px; padding:2px 6px; border-radius:6px; opacity:0; flex-shrink:0; }
+  .todo-row:hover .todo-del{ opacity:1; }
+  @media (hover:none){ .todo-del{ opacity:.6; } }
+  .todo-del:hover{ background:var(--danger); color:#fff; }
+  .todo-add{ margin-top:4px; }
+  .todo-add input{
+    width:100%; border:1px dashed var(--line); background:transparent; border-radius:9px;
+    padding:8px 12px; font-size:14px; outline:none; color:var(--text);
+  }
+  .todo-add input:focus{ border-style:solid; border-color:var(--accent); }
+  .proj-edit{ display:flex; flex-direction:column; gap:10px; }
+  .proj-name-input, .proj-goal-input{
+    width:100%; border:1px solid var(--line); background:var(--surface-2); border-radius:10px;
+    padding:10px 13px; font-size:15px; outline:none; color:var(--text); box-sizing:border-box;
+  }
+  .proj-name-input:focus, .proj-goal-input:focus{ border-color:var(--accent); background:var(--surface); }
+  .proj-goal-input{ min-height:60px; resize:vertical; font-size:14px; }
+  .proj-edit-actions{ display:flex; gap:8px; justify-content:flex-end; }
+
   /* ---------- Entries : 읽기 우선 타임라인 피드 ---------- */
   .entries{ display:flex; flex-direction:column; gap:18px; }
 
@@ -1041,6 +1091,7 @@
         </button>
         <div class="menu" id="menu" role="menu">
           <button id="dailyBtn" role="menuitem">📅 오늘 일지</button>
+          <button id="projectsBtn" role="menuitem">🗂 프로젝트</button>
           <button id="summaryBtn" role="menuitem">✦ AI로 요약하기</button>
           <div class="divider"></div>
           <button id="exportBtn" role="menuitem">백업 내려받기</button>
@@ -1138,6 +1189,22 @@
         <input id="jarvisInput" type="text" placeholder="예: 지난주 #회의 요약해줘" autocomplete="off" enterkeyhint="send" />
         <button class="jarvis-send" type="submit" aria-label="보내기">➤</button>
       </form>
+    </div>
+  </div>
+
+  <!-- Projects Modal -->
+  <div class="scrim" id="projectsScrim" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="projectsTitle" style="max-width:600px">
+      <div class="proj-head">
+        <h2 id="projectsTitle">🗂 프로젝트</h2>
+        <button class="btn" id="projectNewBtn" type="button">+ 새 프로젝트</button>
+      </div>
+      <div class="proj-body" id="projectsBody"></div>
+      <div class="modal-actions">
+        <div class="right" style="margin-left:auto">
+          <button class="btn ghost" id="projectsClose" type="button">닫기</button>
+        </div>
+      </div>
     </div>
   </div>
 
@@ -1269,6 +1336,7 @@ const JPEG_QUALITY = 0.82;
 const state = {
   entries: [],         // loaded entries (휴지통 제외)
   trash: [],           // 삭제되어 휴지통에 있는 기록
+  projects: [],        // 프로젝트(목표·할일 체크리스트 포함)
   search: "",
   monthFilter: null,   // "YYYY-MM" or null
   tagFilter: null,     // "#태그" 필터 (태그명, # 제외) or null
@@ -1436,6 +1504,12 @@ async function flushSyncQueue(){
         if (op.paths && op.paths.length){ try { await sb.storage.from(BUCKET).remove(op.paths); } catch(_){} }
         const { error } = await sb.from("entries").delete().eq("id", op.id);
         if (error) throw error;
+      } else if (op.type === "proj-set"){
+        const { error } = await sb.from("projects").upsert(projectToRow(op.project));
+        if (error) throw error;
+      } else if (op.type === "proj-delete"){
+        const { error } = await sb.from("projects").delete().eq("id", op.id);
+        if (error) throw error;
       }
       didSync = true;
     } catch(err){
@@ -1450,6 +1524,100 @@ async function flushSyncQueue(){
     try { await loadAll(); render(); } catch(_){}
     showToast("오프라인 기록을 동기화했어요");
   }
+}
+
+/* ── 프로젝트 + 할일(체크리스트) 데이터 계층 ──────────────────
+   클라우드(로그인) 시 projects 테이블 동기화, 아니면 localStorage.
+   오프라인이면 기존 sync 큐(proj-set/proj-delete)로 보관 후 자동 동기화. */
+const LOCAL_PROJECTS_KEY = "worklog:projects";
+const PROJECTS_CACHE_KEY = "worklog:projects-cache";
+
+function projectToRow(p){
+  return {
+    id: p.id, user_id: currentUser.id,
+    name: p.name || "", goal: p.goal || "", status: p.status || "active",
+    todos: Array.isArray(p.todos) ? p.todos : [],
+    created_at: p.createdAt || Date.now(),
+    updated_at: p.updatedAt || Date.now(),
+    archived_at: p.archivedAt != null ? p.archivedAt : null,
+  };
+}
+function rowToProject(r){
+  return {
+    id: r.id, name: r.name || "", goal: r.goal || "", status: r.status || "active",
+    todos: Array.isArray(r.todos) ? r.todos : [],
+    createdAt: Number(r.created_at) || 0,
+    updatedAt: Number(r.updated_at) || 0,
+    archivedAt: r.archived_at != null ? Number(r.archived_at) : null,
+  };
+}
+function readLocalProjects(){
+  try { const a = JSON.parse(localStorage.getItem(LOCAL_PROJECTS_KEY)); return Array.isArray(a) ? a : null; }
+  catch(_){ return null; }
+}
+function persistLocalProjects(){
+  try { localStorage.setItem(LOCAL_PROJECTS_KEY, JSON.stringify(state.projects)); } catch(_){}
+}
+function sortProjects(a, b){
+  const order = { active: 0, paused: 1, done: 2 };
+  const oa = order[a.status] ?? 0, ob = order[b.status] ?? 0;
+  if (oa !== ob) return oa - ob;
+  return (b.updatedAt || 0) - (a.updatedAt || 0);
+}
+
+async function loadProjects(){
+  if (isCloud()){
+    try {
+      const { data, error } = await sb.from("projects").select("*");
+      if (error) throw error;
+      state.projects = (data || []).map(rowToProject).sort(sortProjects);
+      try { localStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify(state.projects)); } catch(_){}
+    } catch(err){
+      // 오프라인 → 마지막 캐시
+      try { const c = JSON.parse(localStorage.getItem(PROJECTS_CACHE_KEY)); if (Array.isArray(c)) state.projects = c; } catch(_){}
+    }
+  } else {
+    state.projects = (readLocalProjects() || []).sort(sortProjects);
+  }
+}
+async function saveProject(p){
+  p.updatedAt = Date.now();
+  const i = state.projects.findIndex(x => x.id === p.id);
+  if (i >= 0) state.projects[i] = p; else state.projects.push(p);
+  state.projects.sort(sortProjects);
+  if (isCloud()){
+    try {
+      const { error } = await sb.from("projects").upsert(projectToRow(p));
+      if (error) throw error;
+      try { localStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify(state.projects)); } catch(_){}
+    } catch(err){
+      if (isOfflineError(err)){ enqueueOp({ type: "proj-set", project: p }); }
+      else throw err;
+    }
+  } else {
+    persistLocalProjects();
+  }
+}
+async function removeProject(id){
+  state.projects = state.projects.filter(p => p.id !== id);
+  if (isCloud()){
+    try {
+      const { error } = await sb.from("projects").delete().eq("id", id);
+      if (error) throw error;
+      try { localStorage.setItem(PROJECTS_CACHE_KEY, JSON.stringify(state.projects)); } catch(_){}
+    } catch(err){
+      if (isOfflineError(err)){ enqueueOp({ type: "proj-delete", id }); }
+      else throw err;
+    }
+  } else {
+    persistLocalProjects();
+  }
+}
+// 진행률(완료 할일 비율 %)
+function projectProgress(p){
+  const todos = (p && Array.isArray(p.todos)) ? p.todos : [];
+  if (!todos.length) return 0;
+  return Math.round(todos.filter(t => t.done).length / todos.length * 100);
 }
 
 // localStorage(get/set/delete/list) 와 동일 인터페이스의 Supabase 백엔드
@@ -1709,6 +1877,7 @@ async function startApp(user){
   if (lsb) lsb.style.display = "";
   try { await migrateLocalToCloud(); } catch(e){ console.error(e); }
   try { await loadAll(); } catch(e){ console.error(e); showToast("기록을 불러오지 못했어요"); }
+  try { await loadProjects(); } catch(e){ console.error(e); }
   render();
   document.body.classList.add("app-ready");   // 자비스 FAB 표시
   updateSyncIndicator();
@@ -2939,12 +3108,180 @@ const $dailyBtn = document.getElementById("dailyBtn");
 if ($dailyBtn) $dailyBtn.addEventListener("click", openDailyNote);
 
 /* ============================================================
+   프로젝트 + 할일(체크리스트) 관리
+   ============================================================ */
+const $projectsScrim = document.getElementById("projectsScrim");
+const $projectsBody = document.getElementById("projectsBody");
+let projectsEditingId = null;   // 이름·목표 편집 중인 프로젝트
+let projectsFocusTodo = null;   // 렌더 후 할일 입력칸 포커스 줄 프로젝트
+
+function statusInfo(s){
+  return ({ active:{label:"진행중",cls:"st-active"}, paused:{label:"보류",cls:"st-paused"}, done:{label:"완료",cls:"st-done"} })[s]
+      || { label:"진행중", cls:"st-active" };
+}
+function nextStatus(s){ return s === "active" ? "paused" : s === "paused" ? "done" : "active"; }
+
+function openProjects(){
+  setMenu(false);
+  projectsEditingId = null;
+  $projectsScrim.dataset.open = "true";
+  $projectsScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+  renderProjects();
+}
+function closeProjects(){
+  $projectsScrim.dataset.open = "false";
+  $projectsScrim.setAttribute("aria-hidden", "true");
+  projectsEditingId = null;
+  if ($editorScrim.dataset.open !== "true") document.body.classList.remove("modal-open");
+}
+async function saveProjectSafe(p){
+  try { await saveProject(p); } catch(err){ console.error(err); showToast("저장에 실패했어요"); }
+  updateSyncIndicator();
+}
+
+function renderProjects(){
+  const list = state.projects;
+  if (!list.length){
+    $projectsBody.innerHTML = `<div class="proj-empty">아직 프로젝트가 없어요.<br><span>“+ 새 프로젝트”로 목표와 할 일을 정리해보세요.</span></div>`;
+    return;
+  }
+  $projectsBody.innerHTML = list.map(p => {
+    const si = statusInfo(p.status);
+    const todos = Array.isArray(p.todos) ? p.todos : [];
+    const doneN = todos.filter(t => t.done).length;
+    const prog = projectProgress(p);
+    if (projectsEditingId === p.id){
+      return `<div class="proj-card editing" data-pid="${escapeHtml(p.id)}">
+        <div class="proj-edit">
+          <input class="proj-name-input" data-field="name" value="${escapeHtml(p.name)}" placeholder="프로젝트 이름" />
+          <textarea class="proj-goal-input" data-field="goal" placeholder="목표를 한 줄로 (예: 6월 안에 앱 출시)">${escapeHtml(p.goal)}</textarea>
+          <div class="proj-edit-actions">
+            <button class="btn ghost" type="button" data-cancelproject>취소</button>
+            <button class="btn" type="button" data-saveproject="${escapeHtml(p.id)}">저장</button>
+          </div>
+        </div>
+      </div>`;
+    }
+    const todoList = todos.map((t, i) => `
+      <div class="todo-row ${t.done ? "is-done" : ""}">
+        <button class="todo-check" type="button" data-toggletodo="${escapeHtml(p.id)}" data-idx="${i}" aria-label="완료 토글">${t.done ? "☑" : "☐"}</button>
+        <span class="todo-text">${escapeHtml(t.text)}</span>
+        <button class="todo-del" type="button" data-deltodo="${escapeHtml(p.id)}" data-idx="${i}" aria-label="할일 삭제">✕</button>
+      </div>`).join("");
+    return `<div class="proj-card" data-pid="${escapeHtml(p.id)}">
+      <div class="proj-card-head">
+        <div class="proj-titles">
+          <div class="proj-name">${escapeHtml(p.name || "(이름 없음)")}
+            <button class="proj-status ${si.cls}" type="button" data-status="${escapeHtml(p.id)}" title="상태 변경">${si.label}</button>
+          </div>
+          ${p.goal ? `<div class="proj-goal">🎯 ${escapeHtml(p.goal)}</div>` : ""}
+        </div>
+        <div class="proj-card-actions">
+          <button class="proj-mini" type="button" data-editproject="${escapeHtml(p.id)}" aria-label="편집">✏️</button>
+          <button class="proj-mini" type="button" data-delproject="${escapeHtml(p.id)}" aria-label="삭제">🗑</button>
+        </div>
+      </div>
+      <div class="proj-progress">
+        <div class="proj-bar"><span style="width:${prog}%"></span></div>
+        <div class="proj-prog-num">${doneN}/${todos.length} · ${prog}%</div>
+      </div>
+      <div class="todo-list">
+        ${todoList}
+        <form class="todo-add" data-addtodo="${escapeHtml(p.id)}"><input type="text" placeholder="+ 할 일 추가" autocomplete="off" /></form>
+      </div>
+    </div>`;
+  }).join("");
+
+  if (projectsFocusTodo){
+    const el = $projectsBody.querySelector(`.proj-card[data-pid="${CSS.escape(projectsFocusTodo)}"] .todo-add input`);
+    if (el) el.focus();
+    projectsFocusTodo = null;
+  }
+  if (projectsEditingId){
+    const el = $projectsBody.querySelector(`.proj-card[data-pid="${CSS.escape(projectsEditingId)}"] .proj-name-input`);
+    if (el){ el.focus(); el.select(); }
+  }
+}
+
+function newProject(){
+  const now = Date.now();
+  const p = { id: genId(), name: "새 프로젝트", goal: "", status: "active", todos: [], createdAt: now, updatedAt: now, archivedAt: null };
+  projectsEditingId = p.id;
+  saveProjectSafe(p);           // state.projects 에 즉시 반영(내부에서 push+sort)
+  renderProjects();
+}
+
+document.getElementById("projectsBtn").addEventListener("click", openProjects);
+document.getElementById("projectNewBtn").addEventListener("click", newProject);
+document.getElementById("projectsClose").addEventListener("click", closeProjects);
+$projectsScrim.addEventListener("click", (e) => { if (e.target === $projectsScrim) closeProjects(); });
+
+$projectsBody.addEventListener("click", async (e) => {
+  const status = e.target.closest("[data-status]");
+  if (status){
+    const p = state.projects.find(x => x.id === status.dataset.status);
+    if (p){ p.status = nextStatus(p.status); p.archivedAt = p.status === "done" ? Date.now() : null; await saveProjectSafe(p); renderProjects(); }
+    return;
+  }
+  const ed = e.target.closest("[data-editproject]");
+  if (ed){ projectsEditingId = ed.dataset.editproject; renderProjects(); return; }
+  if (e.target.closest("[data-cancelproject]")){ projectsEditingId = null; renderProjects(); return; }
+  const sv = e.target.closest("[data-saveproject]");
+  if (sv){
+    const card = sv.closest(".proj-card");
+    const p = state.projects.find(x => x.id === sv.dataset.saveproject);
+    if (p && card){
+      p.name = (card.querySelector('[data-field="name"]').value || "").trim() || "(이름 없음)";
+      p.goal = (card.querySelector('[data-field="goal"]').value || "").trim();
+      projectsEditingId = null;
+      await saveProjectSafe(p); renderProjects();
+    }
+    return;
+  }
+  const del = e.target.closest("[data-delproject]");
+  if (del){
+    const id = del.dataset.delproject;
+    openConfirm({ title:"프로젝트 삭제", message:"이 프로젝트와 할 일을 모두 삭제할까요?", okText:"삭제", danger:true,
+      onOk: async () => { try { await removeProject(id); } catch(err){ console.error(err); showToast("삭제에 실패했어요"); return; } projectsEditingId=null; renderProjects(); showToast("삭제했어요"); } });
+    return;
+  }
+  const tg = e.target.closest("[data-toggletodo]");
+  if (tg){
+    const p = state.projects.find(x => x.id === tg.dataset.toggletodo);
+    const i = Number(tg.dataset.idx);
+    if (p && p.todos[i]){ p.todos[i].done = !p.todos[i].done; p.todos[i].doneAt = p.todos[i].done ? Date.now() : null; await saveProjectSafe(p); renderProjects(); }
+    return;
+  }
+  const td = e.target.closest("[data-deltodo]");
+  if (td){
+    const p = state.projects.find(x => x.id === td.dataset.deltodo);
+    const i = Number(td.dataset.idx);
+    if (p && p.todos[i]){ p.todos.splice(i, 1); await saveProjectSafe(p); renderProjects(); }
+    return;
+  }
+});
+$projectsBody.addEventListener("submit", async (e) => {
+  const form = e.target.closest("[data-addtodo]");
+  if (!form) return;
+  e.preventDefault();
+  const p = state.projects.find(x => x.id === form.dataset.addtodo);
+  const inp = form.querySelector("input");
+  const text = (inp.value || "").trim();
+  if (!p || !text) return;
+  p.todos.push({ id: genId(), text, done: false, createdAt: Date.now(), doneAt: null });
+  projectsFocusTodo = p.id;
+  await saveProjectSafe(p); renderProjects();
+});
+
+/* ============================================================
    Global shortcuts & scrim close
    ============================================================ */
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape"){
     if ($lightbox.dataset.open === "true") { closeLightbox(); return; }
     if ($jarvisScrim.dataset.open === "true") { closeJarvis(); return; }
+    if ($projectsScrim.dataset.open === "true") { closeProjects(); return; }
     if ($confirmScrim.dataset.open === "true") { closeConfirm(); return; }
     if ($summaryScrim.dataset.open === "true") { closeSummary(); return; }
     if ($editorScrim.dataset.open === "true") { closeEditor(); return; }
@@ -3098,8 +3435,8 @@ function jarvisPush(role, html){
 }
 function jarvisGreet(){
   jarvisPush("bot",
-    `안녕하세요, 자비스예요. 제 기록 안에서 찾아 답해드려요.<br>` +
-    `<span class="jv-ex">예) “지난주 한 일 요약”, “#버그 몇 건”, “회의 찾아줘”, “이번달 통계”, “연속 며칠”</span>`);
+    `안녕하세요, 자비스예요. 기록과 프로젝트 안에서 찾아 답해드려요.<br>` +
+    `<span class="jv-ex">예) “지난주 한 일 요약”, “#버그 몇 건”, “6월 9일 뭐했어”, “남은 할 일”, “진행중인 프로젝트”, “연속 며칠”</span>`);
 }
 
 /* 날짜 범위 해석 → {from,to,label} | null */
@@ -3186,6 +3523,50 @@ async function jarvisAsk(q){
     const wantStat = /몇|개수|건수|장|며칠|연속|통계|얼마/.test(q);
     const wantAI = /요약|정리|분석|회고|돌아|총평|인사이트|패턴|어땠|평가/.test(q);
 
+    // ── 프로젝트 / 할일 질문 ──
+    if (/프로젝트|할\s*일|할일|투두|todo|체크리스트|미완|안\s*끝|남은\s*(거|일|할|것)|해야|다음\s*할/.test(q)){
+      const projects = state.projects || [];
+      if (!projects.length){
+        jarvisPush("bot", "아직 등록된 프로젝트가 없어요. 메뉴 → <b>🗂 프로젝트</b>에서 목표와 할 일을 만들어보세요.");
+        jarvisBusy = false; return;
+      }
+      // 특정 프로젝트를 지목했는지 (이름이 질문에 포함)
+      const named = projects.find(p => p.name && p.name.length >= 2 && q.includes(p.name));
+      if (named){
+        const todos = named.todos || [];
+        const left = todos.filter(t => !t.done);
+        let html = `<b>${escapeHtml(named.name)}</b> · ${statusInfo(named.status).label} · ${projectProgress(named)}%`;
+        if (named.goal) html += `<br><span class="jv-ex">🎯 ${escapeHtml(named.goal)}</span>`;
+        if (left.length){
+          html += `<br>남은 할 일 <b>${left.length}개</b>` +
+            `<div class="jv-rows">` + left.slice(0, 15).map(t =>
+              `<button class="jv-row" type="button" data-openproject="${escapeHtml(named.id)}"><span>☐ ${escapeHtml(t.text)}</span></button>`).join("") + `</div>`;
+        } else html += `<br>할 일을 모두 끝냈어요! 🎉`;
+        jarvisPush("bot", html); jarvisBusy = false; return;
+      }
+      // 남은 할 일(미완료) 모으기
+      if (/할\s*일|할일|투두|todo|미완|안\s*끝|남은|해야|오늘|다음/.test(q) && !/프로젝트\s*(목록|리스트|뭐|있|몇|개)/.test(q)){
+        const items = [];
+        for (const p of projects){
+          if (p.status === "done") continue;
+          for (const t of (p.todos || [])) if (!t.done) items.push({ text: t.text, project: p.name, pid: p.id });
+        }
+        if (!items.length){ jarvisPush("bot", "남은 할 일이 없어요. 다 끝내셨네요! 🎉"); jarvisBusy = false; return; }
+        const rows = `<div class="jv-rows">` + items.slice(0, 15).map(it =>
+          `<button class="jv-row" type="button" data-openproject="${escapeHtml(it.pid)}"><b>☐ ${escapeHtml(it.project)}</b><span>${escapeHtml(it.text)}</span></button>`).join("") +
+          (items.length > 15 ? `<div class="jv-more">외 ${items.length - 15}개</div>` : "") + `</div>`;
+        jarvisPush("bot", `남은 할 일 <b>${items.length}개</b>예요.` + rows); jarvisBusy = false; return;
+      }
+      // 프로젝트 목록
+      let ps = projects.slice();
+      if (/진행\s*중/.test(q)) ps = ps.filter(p => p.status === "active");
+      const rows = `<div class="jv-rows">` + ps.map(p => {
+        const left = (p.todos || []).filter(t => !t.done).length;
+        return `<button class="jv-row" type="button" data-openproject="${escapeHtml(p.id)}"><b>${escapeHtml(p.name)} · ${statusInfo(p.status).label} ${projectProgress(p)}%</b><span>${left ? ("남은 할일 " + left + "개") : "할일 완료"}${p.goal ? (" · " + escapeHtml(p.goal)) : ""}</span></button>`;
+      }).join("") + `</div>`;
+      jarvisPush("bot", `프로젝트 <b>${ps.length}개</b>예요.` + rows); jarvisBusy = false; return;
+    }
+
     let list = state.entries.slice();
     if (range) list = list.filter(e => e.date >= range.from && e.date <= range.to);
     if (tags.length) list = list.filter(e => { const tg = extractTags(e.text).map(s=>s.toLowerCase()); return tags.every(t => tg.includes(t)); });
@@ -3265,6 +3646,8 @@ document.getElementById("jarvisClose").addEventListener("click", closeJarvis);
 $jarvisScrim.addEventListener("click", (e) => { if (e.target === $jarvisScrim) closeJarvis(); });
 $jarvisForm.addEventListener("submit", (e) => { e.preventDefault(); jarvisAsk($jarvisInput.value); });
 $jarvisLog.addEventListener("click", (e) => {
+  const projRow = e.target.closest(".jv-row[data-openproject]");
+  if (projRow){ closeJarvis(); openProjects(); return; }
   const row = e.target.closest(".jv-row[data-open]");
   if (!row) return;
   const entry = state.entries.find(x => x.id === row.dataset.open);
@@ -3580,6 +3963,7 @@ $lockNowBtn.addEventListener("click", () => {
     console.error(e);
     showToast("저장된 기록을 불러오지 못했어요");
   }
+  try { await loadProjects(); } catch(e){ console.error(e); }
   render();
   document.body.classList.add("app-ready");
 })();
