@@ -2886,10 +2886,19 @@ $lockNowBtn.addEventListener("click", () => {
 })();
 </script>
 <script>
-  /* PWA 서비스 워커 등록 (오프라인 실행 + 홈 화면 설치) */
+  /* PWA 서비스 워커 등록 + 자동 업데이트 (새 버전 배포 시 자동 반영) */
   if ("serviceWorker" in navigator) {
     window.addEventListener("load", () => {
-      navigator.serviceWorker.register("sw.js").catch((e) => console.warn("SW 등록 실패", e));
+      navigator.serviceWorker.register("sw.js").then((reg) => {
+        reg.update();
+        setInterval(() => reg.update(), 60 * 60 * 1000); // 1시간마다 갱신 확인
+      }).catch((e) => console.warn("SW 등록 실패", e));
+      let reloaded = false;
+      navigator.serviceWorker.addEventListener("controllerchange", () => {
+        if (reloaded) return;
+        reloaded = true;
+        location.reload(); // 새 SW가 제어 시작하면 1회 새로고침해 최신 화면 적용
+      });
     });
   }
 </script>
