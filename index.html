@@ -2020,6 +2020,28 @@ function extractLinks(text){
   return out;
 }
 
+/* 날짜를 사람이 검색할 법한 여러 형태로 펼쳐 검색 대상에 포함
+   예) 2026-06-09 → "2026년 6월 9일", "2026년 6월", "6월 9일", "6월", "9일", "2026.06.09" … */
+function dateSearchText(iso){
+  const m = /^(\d{4})-(\d{2})-(\d{2})$/.exec(iso || "");
+  if (!m) return iso || "";
+  const y = m[1], mo = m[2], d = m[3];
+  const moN = String(Number(mo)), dN = String(Number(d));
+  return [
+    iso, `${y}.${mo}.${d}`, `${y}/${mo}/${d}`, `${mo}.${d}`, `${moN}/${dN}`,
+    `${y}년 ${moN}월 ${dN}일`, `${y}년 ${moN}월`, `${moN}월 ${dN}일`,
+    `${moN}월`, `${dN}일`, y
+  ].join(" ");
+}
+// 검색·자비스가 함께 뒤지는 텍스트: 본문 + 화면에 보이는 날짜 + 날짜 변형들
+function searchableText(e){
+  const parts = [e.text || "", e.date || ""];
+  try { parts.push(formatDateLine(e.date).full); } catch(_){}
+  try { parts.push(formatMonth((e.date || "").slice(0, 7))); } catch(_){}
+  parts.push(dateSearchText(e.date));
+  return parts.join(" ").toLowerCase();
+}
+
 /* 검색 연산자 파서: tag:버그  -제외어  "정확한 구문"  일반어(AND) */
 function parseSearch(q){
   const out = { inc: [], exc: [], tags: [] };
@@ -2037,7 +2059,7 @@ function parseSearch(q){
   return out;
 }
 function matchSearch(entry, parsed){
-  const text = (entry.text || "").toLowerCase();
+  const text = searchableText(entry);   // 본문 + 날짜(여러 형태) 동시 검색
   for (const t of parsed.inc) if (!text.includes(t)) return false;
   for (const t of parsed.exc) if (text.includes(t)) return false;
   if (parsed.tags.length){
@@ -3083,6 +3105,11 @@ function jarvisDateRange(q){
   if (m){ const n = Math.max(1, Number(m[1])); return { from: isoAddDays(t, -(n-1)), to: t, label: `최근 ${n}일` }; }
   if (/지난\s*달|저번\s*달|전\s*달/.test(q)){ const d = new Date(t.slice(0,4), Number(t.slice(5,7))-1-1, 1); const ym = todayISOFrom(d).slice(0,7); return monthRange(ym, "지난달"); }
   if (/이번\s*달|금월|이달/.test(q)) return monthRange(t.slice(0,7), "이번달");
+  // 특정 일자: 2026-06-09 / 2026.6.9 / 2026년 6월 9일 / 6월 9일 / 6/9
+  let dm = q.match(/(\d{4})\s*[-.\/]\s*(\d{1,2})\s*[-.\/]\s*(\d{1,2})/) || q.match(/(\d{4})년\s*(\d{1,2})월\s*(\d{1,2})일/);
+  if (dm){ const iso = `${dm[1]}-${String(+dm[2]).padStart(2,"0")}-${String(+dm[3]).padStart(2,"0")}`; return { from: iso, to: iso, label: formatDateLine(iso).full.split(" · ")[0] }; }
+  dm = q.match(/(\d{1,2})\s*월\s*(\d{1,2})\s*일/) || q.match(/(?:^|\D)(\d{1,2})\s*\/\s*(\d{1,2})(?!\d)/);
+  if (dm){ const iso = `${t.slice(0,4)}-${String(+dm[1]).padStart(2,"0")}-${String(+dm[2]).padStart(2,"0")}`; return { from: iso, to: iso, label: `${+dm[1]}월 ${+dm[2]}일` }; }
   m = q.match(/(\d{4})\s*[-.\/]\s*(\d{1,2})/) || q.match(/(\d{4})년\s*(\d{1,2})월/);
   if (m){ const ym = m[1]+"-"+String(Number(m[2])).padStart(2,"0"); return monthRange(ym, formatMonth(ym)); }
   m = q.match(/(?:^|\D)(\d{1,2})\s*월(?!\s*\d)/);
@@ -3102,6 +3129,10 @@ function jarvisKeywords(q){
     // 상대·절대 날짜 표현 제거(검색어로 오인 방지)
     .replace(/오늘|금일|어제|그저께|그제|이번\s*주|지난\s*주|저번\s*주|전\s*주|금주|한\s*주|이번\s*달|지난\s*달|저번\s*달|전\s*달|이달|금월|올해|금년/g," ")
     .replace(/(?:최근|지난)\s*\d+\s*일/g," ")
+    .replace(/\d{4}\s*[-.\/]\s*\d{1,2}\s*[-.\/]\s*\d{1,2}/g," ")  // 2026-06-09
+    .replace(/\d{4}년\s*\d{1,2}월\s*\d{1,2}일/g," ")
+    .replace(/\d{1,2}\s*월\s*\d{1,2}\s*일/g," ")                  // 6월 9일
+    .replace(/\d{1,2}\s*\/\s*\d{1,2}/g," ")                       // 6/9
     .replace(/\d{4}\s*[-.\/]?\s*\d{0,2}\s*월?/g," ")
     .replace(/\d{1,2}\s*월/g," ")
     .split(/[\s,.;]+/)
@@ -3147,7 +3178,7 @@ async function jarvisAsk(q){
     let list = state.entries.slice();
     if (range) list = list.filter(e => e.date >= range.from && e.date <= range.to);
     if (tags.length) list = list.filter(e => { const tg = extractTags(e.text).map(s=>s.toLowerCase()); return tags.every(t => tg.includes(t)); });
-    if (terms.length) list = list.filter(e => { const lc = (e.text||"").toLowerCase(); return terms.every(t => lc.includes(t.toLowerCase())); });
+    if (terms.length) list = list.filter(e => { const lc = searchableText(e); return terms.every(t => lc.includes(t.toLowerCase())); });
     list.sort(sortEntries);
 
     const scopeBits = [];
