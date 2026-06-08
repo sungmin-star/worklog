@@ -184,6 +184,9 @@
     transition:opacity .18s ease, transform .18s ease;
   }
   .menu[data-open="true"]{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
+  /* 메뉴 열렸을 때 뒤 영역을 잠시 숨겨 iOS 네이티브 컨트롤 비침(겹침 띠) 방지 */
+  body.menu-open .controls,
+  body.menu-open .months{ visibility:hidden; }
   .menu button{
     display:block;
     width:100%;
@@ -2205,6 +2208,7 @@ const $menu = document.getElementById("menu");
 function setMenu(open){
   $menu.dataset.open = open ? "true" : "false";
   $menuBtn.setAttribute("aria-expanded", open ? "true" : "false");
+  document.body.classList.toggle("menu-open", open);
 }
 $menuBtn.addEventListener("click", (e) => {
   e.stopPropagation();
