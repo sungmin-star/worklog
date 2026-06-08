@@ -131,6 +131,62 @@
     .page{ padding:40px 18px 100px; }
   }
 
+  /* ---------- 좌측 카테고리 사이드바 ---------- */
+  .sidebar-toggle{
+    position:absolute; left:0; top:50%; transform:translateY(-50%);
+    width:38px; height:38px; border-radius:50%; border:none;
+    background:var(--surface-2); color:var(--text);
+    display:inline-flex; align-items:center; justify-content:center;
+    transition:background-color .15s ease;
+  }
+  .sidebar-toggle svg{ width:18px; height:18px; }
+  .sidebar-toggle:hover{ background:var(--line); }
+  .sidebar{
+    position:fixed; left:0; top:0; bottom:0; width:248px; z-index:95;
+    background:var(--surface); border-right:1px solid var(--line);
+    padding:22px 12px; overflow-y:auto;
+    transform:translateX(-100%); transition:transform .25s ease;
+    display:none;
+  }
+  body.app-ready .sidebar{ display:block; }
+  .sidebar[data-open="true"]{ transform:translateX(0); box-shadow:var(--shadow-lg); }
+  .sidebar-overlay{
+    position:fixed; inset:0; z-index:94; background:rgba(0,0,0,0.4);
+    opacity:0; pointer-events:none; transition:opacity .25s ease;
+  }
+  .sidebar-overlay[data-open="true"]{ opacity:1; pointer-events:auto; }
+  .sb-brand{ font-size:13px; font-weight:700; color:var(--muted); padding:4px 12px 14px; letter-spacing:.02em; }
+  .sb-section{ margin-bottom:18px; }
+  .sb-title{ font-size:11.5px; font-weight:600; color:var(--muted); padding:0 12px 6px; text-transform:uppercase; letter-spacing:.04em; }
+  .sb-item, .sb-sub{
+    display:flex; align-items:center; gap:8px; width:100%; text-align:left; border:none;
+    background:transparent; color:var(--text); border-radius:9px; cursor:pointer;
+    transition:background-color .12s ease;
+  }
+  .sb-item{ padding:9px 12px; font-size:14.5px; font-weight:500; }
+  .sb-sub{ padding:7px 12px 7px 14px; font-size:13.5px; color:var(--muted); }
+  .sb-item:hover, .sb-sub:hover{ background:var(--surface-2); color:var(--text); }
+  .sb-item.active, .sb-sub.active{ background:var(--surface-2); color:var(--text); font-weight:600; box-shadow:inset 0 0 0 1px var(--line); }
+  .sb-c{ margin-left:auto; font-size:11.5px; color:var(--muted); font-weight:500; }
+  .sb-empty{ padding:4px 12px; font-size:12.5px; color:var(--muted); }
+
+  /* 데스크탑: 사이드바 항상 표시 + 콘텐츠 우측 확보 */
+  @media (min-width:1024px){
+    .sidebar{ transform:none !important; box-shadow:none; }
+    .sidebar-overlay{ display:none; }
+    .sidebar-toggle{ display:none; }
+    body.app-ready{ padding-left:248px; }
+    body.app-ready .months, body.app-ready .tagbar{ display:none; } /* 사이드바가 대체 */
+  }
+
+  /* ---------- 사진 갤러리 ---------- */
+  .photo-head{ font-size:14px; font-weight:600; color:var(--muted); margin-bottom:14px; }
+  .photo-grid{ display:grid; grid-template-columns:repeat(auto-fill, minmax(104px,1fr)); gap:8px; }
+  .photo-cell{ border:none; padding:0; aspect-ratio:1; border-radius:10px; overflow:hidden; cursor:pointer; background:var(--surface-2); }
+  .photo-cell img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .2s ease; }
+  .photo-cell:hover img{ transform:scale(1.05); }
+  body.view-photos .controls, body.view-photos .months, body.view-photos .tagbar{ display:none; }
+
   /* ---------- Header ---------- */
   header.top{
     position:relative;
@@ -1080,8 +1136,15 @@
     </div>
   </div>
 
+  <!-- 좌측 카테고리 사이드바 (데스크탑 고정 / 모바일 드로어) -->
+  <aside class="sidebar" id="sidebar" aria-label="카테고리"></aside>
+  <div class="sidebar-overlay" id="sidebarOverlay"></div>
+
   <main class="page">
     <header class="top">
+      <button class="sidebar-toggle" id="sidebarToggle" aria-label="카테고리 열기">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
+      </button>
       <h1 class="title"><img class="brand-logo logo-light" src="./logo.png" alt="L'Heure Bleue" /><img class="brand-logo logo-dark" src="./logo-dark.png" alt="L'Heure Bleue" /></h1>
       <div class="header-actions">
       <button class="icon-btn" id="themeBtn" aria-label="라이트/다크 테마 전환"></button>
@@ -1337,6 +1400,7 @@ const state = {
   entries: [],         // loaded entries (휴지통 제외)
   trash: [],           // 삭제되어 휴지통에 있는 기록
   projects: [],        // 프로젝트(목표·할일 체크리스트 포함)
+  view: "timeline",    // "timeline" | "photos" (좌측 사이드바 카테고리)
   search: "",
   monthFilter: null,   // "YYYY-MM" or null
   tagFilter: null,     // "#태그" 필터 (태그명, # 제외) or null
@@ -2251,10 +2315,88 @@ function filteredEntries(){
 }
 
 function render(){
+  renderSidebar();
   renderStats();
-  renderMonths();
-  renderTags();
-  renderEntries();
+  if (state.view === "photos"){
+    document.body.classList.add("view-photos");
+    renderPhotos();
+  } else {
+    document.body.classList.remove("view-photos");
+    renderMonths();
+    renderTags();
+    renderEntries();
+  }
+}
+
+/* ── 좌측 카테고리 사이드바 ───────────────────────────────── */
+const $sidebar = document.getElementById("sidebar");
+const $sidebarOverlay = document.getElementById("sidebarOverlay");
+
+function renderSidebar(){
+  const months = [...new Set(state.entries.map(e => e.date.slice(0, 7)))].sort().reverse();
+  const tagCounts = new Map();
+  for (const e of state.entries) for (const t of extractTags(e.text)) tagCounts.set(t, (tagCounts.get(t) || 0) + 1);
+  const tags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko")).slice(0, 40);
+  const photoN = state.entries.reduce((a, e) => a + (e.images?.length || 0), 0);
+  const onTimeline = state.view === "timeline";
+  const isAll = onTimeline && !state.monthFilter && !state.tagFilter && !state.linkFilter && !state.search;
+  $sidebar.innerHTML =
+    `<div class="sb-brand">기록</div>` +
+    `<div class="sb-section">` +
+      `<button class="sb-item ${isAll ? "active" : ""}" data-nav="all">📋 전체 기록 <span class="sb-c">${state.entries.length}</span></button>` +
+      `<button class="sb-item ${state.view === "photos" ? "active" : ""}" data-nav="photos">🖼 사진 <span class="sb-c">${photoN}</span></button>` +
+      `<button class="sb-item" data-nav="projects">🗂 프로젝트 <span class="sb-c">${state.projects.length}</span></button>` +
+      `<button class="sb-item" data-nav="trash">🗑 휴지통</button>` +
+    `</div>` +
+    `<div class="sb-section"><div class="sb-title">월별</div>` +
+      (months.length ? months.map(ym =>
+        `<button class="sb-sub ${onTimeline && state.monthFilter === ym ? "active" : ""}" data-month="${ym}">${escapeHtml(formatMonth(ym))}</button>`).join("")
+        : `<div class="sb-empty">기록 없음</div>`) +
+    `</div>` +
+    `<div class="sb-section"><div class="sb-title">태그</div>` +
+      (tags.length ? tags.map(([t, c]) =>
+        `<button class="sb-sub ${onTimeline && state.tagFilter === t ? "active" : ""}" data-tag="${escapeHtml(t)}">#${escapeHtml(t)} <span class="sb-c">${c}</span></button>`).join("")
+        : `<div class="sb-empty">태그 없음</div>`) +
+    `</div>`;
+}
+
+function openSidebar(){ $sidebar.dataset.open = "true"; $sidebarOverlay.dataset.open = "true"; }
+function closeSidebar(){ $sidebar.dataset.open = "false"; $sidebarOverlay.dataset.open = "false"; }
+
+document.getElementById("sidebarToggle").addEventListener("click", openSidebar);
+$sidebarOverlay.addEventListener("click", closeSidebar);
+$sidebar.addEventListener("click", (e) => {
+  const nav = e.target.closest("[data-nav]");
+  if (nav){
+    const k = nav.dataset.nav;
+    if (k === "all"){
+      state.view = "timeline"; state.monthFilter = null; state.tagFilter = null; state.linkFilter = null; state.search = "";
+      const si = document.getElementById("searchInput"); if (si) si.value = "";
+      render(); window.scrollTo({ top: 0 });
+    } else if (k === "photos"){ state.view = "photos"; render(); window.scrollTo({ top: 0 }); }
+    else if (k === "projects"){ openProjects(); }
+    else if (k === "trash"){ openTrash(); }
+    closeSidebar(); return;
+  }
+  const mo = e.target.closest("[data-month]");
+  if (mo){ state.view = "timeline"; state.monthFilter = mo.dataset.month; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
+  const tg = e.target.closest("[data-tag]");
+  if (tg){ state.view = "timeline"; state.tagFilter = tg.dataset.tag; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
+});
+
+/* ── 사진 갤러리 뷰 ───────────────────────────────────────── */
+function renderPhotos(){
+  const items = [];
+  for (const e of state.entries) (e.images || []).forEach((src, i) => items.push({ src, i, id: e.id }));
+  if (!items.length){
+    $entries.innerHTML = `<div class="empty"><div class="e-title">사진이 없어요</div><div class="e-sub">기록에 사진을 추가하면 여기 모여요</div></div>`;
+    return;
+  }
+  $entries.innerHTML =
+    `<div class="photo-head">🖼 모든 사진 <b>${items.length}</b>장</div>` +
+    `<div class="photo-grid">` +
+    items.map(it => `<button class="photo-cell" type="button" data-pid="${escapeHtml(it.id)}" data-idx="${it.i}"><img src="${escapeHtml(imgSrc(it.src))}" alt="" loading="lazy"></button>`).join("") +
+    `</div>`;
 }
 
 function renderTags(){
@@ -2996,6 +3138,14 @@ document.getElementById("importFile").addEventListener("change", async (e) => {
    Event delegation: cards
    ============================================================ */
 $entries.addEventListener("click", (e) => {
+  // 0) 사진 갤러리 셀 → 라이트박스
+  const cell = e.target.closest(".photo-cell");
+  if (cell){
+    const entry = state.entries.find(x => x.id === cell.dataset.pid);
+    const idx = Number(cell.dataset.idx || 0);
+    if (entry && entry.images && entry.images[idx]) openLightbox(entry.images.map(imgSrc), idx);
+    return;
+  }
   // 1) 수정 버튼
   const editBtn = e.target.closest("[data-edit]");
   if (editBtn){
@@ -3286,6 +3436,7 @@ document.addEventListener("keydown", (e) => {
     if ($summaryScrim.dataset.open === "true") { closeSummary(); return; }
     if ($editorScrim.dataset.open === "true") { closeEditor(); return; }
     if ($menu.dataset.open === "true") { setMenu(false); return; }
+    if ($sidebar.dataset.open === "true") { closeSidebar(); return; }
   }
   if ($lightbox.dataset.open === "true"){
     if (e.key === "ArrowLeft") { e.preventDefault(); lbStep(-1); return; }
