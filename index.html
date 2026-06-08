@@ -188,7 +188,8 @@
      위젯 이동 없이 자연스럽게 뒤로 물러나게 함.
      opacity<1 이면 독립 합성 레이어가 되어 iOS 네이티브 입력칸 비침(겹침 띠)도 함께 방지됨 */
   body.menu-open .controls,
-  body.menu-open .months{ opacity:.4; pointer-events:none; }
+  body.menu-open .months,
+  body.menu-open .tagbar{ opacity:.4; pointer-events:none; }
   .menu button{
     display:block;
     width:100%;
@@ -311,6 +312,56 @@
     box-shadow:inset 0 0 0 1px var(--line-strong);
   }
   .pill[aria-pressed="true"]:hover{ background:var(--surface); }
+
+  /* ---------- Tag filter bar (#태그) ---------- */
+  .tagbar{
+    display:flex;
+    gap:6px;
+    overflow-x:auto;
+    padding-bottom:8px;
+    margin:0 -4px 26px;
+    padding-left:4px; padding-right:4px;
+    scrollbar-width:none;
+    transition:opacity .18s ease;
+  }
+  .tagbar::-webkit-scrollbar{ display:none; }
+  .tagbar .pill{ color:var(--accent); }
+  .tagbar .pill[aria-pressed="true"]{ color:var(--accent); }
+  .tagbar .tag-clear{ color:var(--danger); }
+
+  /* 카드 하단 태그 칩 */
+  .entry-tags{ display:flex; flex-wrap:wrap; gap:6px; margin-top:14px; }
+  .entry-tags .tag{
+    border:none;
+    background:var(--surface-2);
+    color:var(--accent);
+    border-radius:999px;
+    padding:4px 11px;
+    font-size:12.5px;
+    font-weight:500;
+    transition:background-color .15s ease, transform .1s ease;
+  }
+  .entry-tags .tag:hover{ background:var(--line); }
+  .entry-tags .tag:active{ transform:scale(0.95); }
+  /* 본문 안의 #태그 강조 */
+  .entry-text .hash{ color:var(--accent); font-weight:600; }
+
+  /* 오프라인 동기화 대기 배지 */
+  .sync-status{
+    position:fixed;
+    left:16px; bottom:16px;
+    z-index:200;
+    background:var(--surface);
+    border:1px solid var(--line-strong);
+    color:var(--text);
+    border-radius:999px;
+    padding:8px 14px;
+    font-size:12.5px;
+    font-weight:500;
+    box-shadow:var(--shadow-lg);
+    cursor:pointer;
+    animation:fadeIn .3s ease both;
+  }
 
   /* ---------- Entries : 읽기 우선 타임라인 피드 ---------- */
   .entries{ display:flex; flex-direction:column; gap:18px; }
@@ -936,6 +987,7 @@
     </div>
 
     <nav class="months" id="months" aria-label="월별 필터"></nav>
+    <nav class="tagbar" id="tagbar" aria-label="태그 필터"></nav>
 
     <section class="entries" id="entries" aria-live="polite"></section>
   </main>
@@ -1122,6 +1174,7 @@ const state = {
   trash: [],           // 삭제되어 휴지통에 있는 기록
   search: "",
   monthFilter: null,   // "YYYY-MM" or null
+  tagFilter: null,     // "#태그" 필터 (태그명, # 제외) or null
   editing: null,       // entry being edited, or null when creating
   draftImages: [],     // dataURLs in editor
 };
@@ -1206,6 +1259,101 @@ async function ensureSignedUrls(entries){
   }
 }
 
+/* ── 오프라인 쓰기 동기화 큐 ──────────────────────────────────
+   오프라인/네트워크 끊김 상태에서 저장·삭제가 실패하면 localStorage 큐에
+   쌓아두고, 온라인 복귀(또는 로그인) 시 자동으로 서버에 반영한다.
+   오프라인에서 추가한 사진은 dataURL 로 큐에 보관했다가 동기화 때 업로드. */
+const SYNC_QUEUE_KEY = "worklog:sync-queue";
+let flushing = false;
+
+function entryToRow(e){
+  return {
+    id: e.id, user_id: currentUser.id, date: e.date,
+    text: e.text || "", images: e.images || [],
+    created_at: e.createdAt, updated_at: e.updatedAt,
+    deleted_at: e.deletedAt != null ? e.deletedAt : null,
+  };
+}
+// 네트워크성 실패만 큐에 넣는다(RLS 등 진짜 오류는 그대로 throw 되게 구분)
+function isOfflineError(err){
+  if (typeof navigator !== "undefined" && navigator.onLine === false) return true;
+  const m = ((err && (err.message || err.toString())) || "").toLowerCase();
+  return (err instanceof TypeError) || m.includes("failed to fetch") ||
+         m.includes("network") || m.includes("fetch") || m.includes("timeout");
+}
+function loadSyncQueue(){
+  try { const a = JSON.parse(localStorage.getItem(SYNC_QUEUE_KEY)); return Array.isArray(a) ? a : []; }
+  catch(_){ return []; }
+}
+function saveSyncQueue(q){
+  try { localStorage.setItem(SYNC_QUEUE_KEY, JSON.stringify(q)); } catch(_){}
+}
+function enqueueOp(op){
+  const q = loadSyncQueue();
+  // 같은 기록의 이전 set 은 최신 것으로 합쳐 큐가 무한정 커지지 않게
+  if (op.type === "set"){
+    const i = q.findIndex(x => x.type === "set" && x.entry && x.entry.id === op.entry.id);
+    if (i >= 0) q.splice(i, 1);
+  }
+  q.push(op);
+  saveSyncQueue(q);
+  updateSyncIndicator();
+}
+function pendingSyncCount(){ return loadSyncQueue().length; }
+
+function updateSyncIndicator(){
+  const n = pendingSyncCount();
+  let el = document.getElementById("syncStatus");
+  if (n === 0){ if (el) el.remove(); return; }
+  if (!el){
+    el = document.createElement("div");
+    el.id = "syncStatus";
+    el.className = "sync-status";
+    el.addEventListener("click", () => flushSyncQueue());
+    document.body.appendChild(el);
+  }
+  el.textContent = `⏳ 동기화 대기 ${n}건`;
+}
+
+// 큐 비우기 — 온라인일 때 순서대로 서버 반영
+async function flushSyncQueue(){
+  if (flushing) return;
+  if (!isCloud() || (typeof navigator !== "undefined" && navigator.onLine === false)) return;
+  let q = loadSyncQueue();
+  if (!q.length) return;
+  flushing = true;
+  const remain = [];
+  let didSync = false;
+  for (const op of q){
+    try {
+      if (op.type === "set"){
+        const e = op.entry;
+        let imgs = Array.isArray(e.images) ? e.images : [];
+        if (imgs.some(s => typeof s === "string" && s.startsWith("data:"))){
+          imgs = await prepareImagesForSave(e.id, imgs);   // 보관해둔 dataURL 업로드
+        }
+        const { error } = await sb.from("entries").upsert(entryToRow({ ...e, images: imgs }));
+        if (error) throw error;
+      } else if (op.type === "delete"){
+        if (op.paths && op.paths.length){ try { await sb.storage.from(BUCKET).remove(op.paths); } catch(_){} }
+        const { error } = await sb.from("entries").delete().eq("id", op.id);
+        if (error) throw error;
+      }
+      didSync = true;
+    } catch(err){
+      if (isOfflineError(err)) remain.push(op);   // 아직 오프라인 → 다음 기회에 재시도
+      else console.error("동기화 실패(영구, 건너뜀)", op, err); // 복구불가 → 버림
+    }
+  }
+  saveSyncQueue(remain);
+  updateSyncIndicator();
+  flushing = false;
+  if (didSync && remain.length === 0){
+    try { await loadAll(); render(); } catch(_){}
+    showToast("오프라인 기록을 동기화했어요");
+  }
+}
+
 // localStorage(get/set/delete/list) 와 동일 인터페이스의 Supabase 백엔드
 function makeSupabaseStorage(){
   const cache = new Map(); // id -> entry obj
@@ -1237,26 +1385,28 @@ function makeSupabaseStorage(){
     },
     async set(key, val){
       const e = typeof val === "string" ? JSON.parse(val) : val;
-      const row = {
-        id: e.id, user_id: currentUser.id, date: e.date,
-        text: e.text || "", images: e.images || [],
-        created_at: e.createdAt, updated_at: e.updatedAt,
-        deleted_at: e.deletedAt != null ? e.deletedAt : null,
-      };
-      const { error } = await sb.from("entries").upsert(row);
-      if (error) throw error;
-      cache.set(e.id, e);
+      cache.set(e.id, e);                       // 화면 즉시 반영(낙관적)
+      try {
+        const { error } = await sb.from("entries").upsert(entryToRow(e));
+        if (error) throw error;
+      } catch(err){
+        if (isOfflineError(err)){ enqueueOp({ type: "set", entry: e }); return; }
+        throw err;                              // 진짜 오류는 그대로 전달
+      }
     },
     async delete(key){
       const id = key.slice(KEY_PREFIX.length);
       const e = cache.get(id);
-      if (e && Array.isArray(e.images)){
-        const paths = e.images.filter(isStoragePath);
+      const paths = (e && Array.isArray(e.images)) ? e.images.filter(isStoragePath) : [];
+      cache.delete(id);                         // 화면 즉시 반영(낙관적)
+      try {
         if (paths.length){ try { await sb.storage.from(BUCKET).remove(paths); } catch(_){} }
+        const { error } = await sb.from("entries").delete().eq("id", id);
+        if (error) throw error;
+      } catch(err){
+        if (isOfflineError(err)){ enqueueOp({ type: "delete", id, paths }); return; }
+        throw err;
       }
-      const { error } = await sb.from("entries").delete().eq("id", id);
-      if (error) throw error;
-      cache.delete(id);
     },
     async list(){
       await ensureLoaded();
@@ -1462,7 +1612,11 @@ async function startApp(user){
   try { await migrateLocalToCloud(); } catch(e){ console.error(e); }
   try { await loadAll(); } catch(e){ console.error(e); showToast("기록을 불러오지 못했어요"); }
   render();
+  updateSyncIndicator();
+  flushSyncQueue();           // 지난 오프라인 변경분이 있으면 동기화
 }
+// 네트워크 복귀 시 자동 동기화
+window.addEventListener("online", () => { flushSyncQueue(); });
 
 if ($authCard) $authCard.addEventListener("submit", (e) => {
   e.preventDefault();
@@ -1736,12 +1890,28 @@ async function purgeExpiredTrash(all){
    ============================================================ */
 const $entries = document.getElementById("entries");
 const $months = document.getElementById("months");
+const $tagbar = document.getElementById("tagbar");
 const $stats = document.getElementById("stats");
+
+// 본문에서 #태그 추출 (한글·영문·숫자·_·- 허용). 앞이 공백/줄머리/괄호일 때만 인식
+const TAG_RE = /(^|[\s(])#([0-9A-Za-z_\-가-힣ㄱ-ㆎ]+)/g;
+function extractTags(text){
+  if (!text) return [];
+  const out = [];
+  let m;
+  TAG_RE.lastIndex = 0;
+  while ((m = TAG_RE.exec(text))){
+    const t = m[2];
+    if (t && !out.includes(t)) out.push(t);
+  }
+  return out;
+}
 
 function filteredEntries(){
   const q = state.search.trim().toLowerCase();
   return state.entries.filter(e => {
     if (state.monthFilter && !e.date.startsWith(state.monthFilter)) return false;
+    if (state.tagFilter && !extractTags(e.text).includes(state.tagFilter)) return false;
     if (q && !(e.text || "").toLowerCase().includes(q)) return false;
     return true;
   });
@@ -1750,7 +1920,45 @@ function filteredEntries(){
 function render(){
   renderStats();
   renderMonths();
+  renderTags();
   renderEntries();
+}
+
+function renderTags(){
+  const counts = new Map();
+  for (const e of state.entries){
+    for (const t of extractTags(e.text)) counts.set(t, (counts.get(t) || 0) + 1);
+  }
+  // 현재 필터가 더 이상 존재하지 않는 태그면 해제
+  if (state.tagFilter && !counts.has(state.tagFilter)) state.tagFilter = null;
+  if (counts.size === 0){ $tagbar.innerHTML = ""; $tagbar.style.display = "none"; return; }
+  const tags = [...counts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko"));
+  const parts = [];
+  if (state.tagFilter){
+    parts.push(`<button class="pill tag-clear" data-tag="" aria-label="태그 필터 해제">✕ #${escapeHtml(state.tagFilter)}</button>`);
+  }
+  for (const [t, c] of tags){
+    const pressed = state.tagFilter === t;
+    parts.push(`<button class="pill" data-tag="${escapeHtml(t)}" aria-pressed="${pressed}">#${escapeHtml(t)} <span class="c">${c}</span></button>`);
+  }
+  $tagbar.innerHTML = parts.join("");
+  $tagbar.style.display = "";
+}
+
+function isoAddDays(iso, n){
+  const [y, m, d] = iso.split("-").map(Number);
+  return todayISOFrom(new Date(y, m - 1, d + n));
+}
+// 오늘(또는 어제)부터 거꾸로 며칠 연속 기록했는지
+function currentStreak(entries){
+  const set = new Set(entries.map(e => e.date));
+  if (!set.size) return 0;
+  const today = todayISO();
+  let start = set.has(today) ? today : isoAddDays(today, -1);
+  if (!set.has(start)) return 0;     // 오늘·어제 둘 다 없으면 연속 끊김
+  let streak = 0, d = start;
+  while (set.has(d)){ streak++; d = isoAddDays(d, -1); }
+  return streak;
 }
 
 function renderStats(){
@@ -1759,14 +1967,21 @@ function renderStats(){
   const photos = state.entries.reduce((acc, e) => acc + (e.images?.length || 0), 0);
   if (total === 0){
     $stats.innerHTML = `아직 기록이 없습니다`;
-  } else {
-    $stats.innerHTML =
-      `총 <b>${total}</b>건` +
-      `<span class="sep">·</span>` +
-      `<b>${days}</b>일 기록` +
-      `<span class="sep">·</span>` +
-      `사진 <b>${photos}</b>장`;
+    return;
   }
+  let html =
+    `총 <b>${total}</b>건` +
+    `<span class="sep">·</span>` +
+    `<b>${days}</b>일 기록` +
+    `<span class="sep">·</span>` +
+    `사진 <b>${photos}</b>장`;
+  const streak = currentStreak(state.entries);
+  if (streak >= 2) html += `<span class="sep">·</span>🔥 <b>${streak}</b>일 연속`;
+  if (state.monthFilter){
+    const cnt = state.entries.filter(e => e.date.startsWith(state.monthFilter)).length;
+    html += `<span class="sep">·</span>${escapeHtml(formatMonth(state.monthFilter))} <b>${cnt}</b>건`;
+  }
+  $stats.innerHTML = html;
 }
 
 function renderMonths(){
@@ -1791,7 +2006,7 @@ function renderEntries(){
   const list = filteredEntries();
   if (list.length === 0){
     const isEmpty = state.entries.length === 0;
-    const isFilter = !!(state.search || state.monthFilter);
+    const isFilter = !!(state.search || state.monthFilter || state.tagFilter);
     $entries.innerHTML = `
       <div class="empty">
         <div class="e-title">${isFilter ? "검색 결과가 없어요" : "오늘의 첫 기록"}</div>
@@ -1839,6 +2054,14 @@ function renderEntry(e, query){
       `<button class="more-btn" type="button" data-more="${escapeHtml(e.id)}" hidden>계속 읽기</button>`;
   }
 
+  const tags = extractTags(e.text);
+  let tagBlock = "";
+  if (tags.length){
+    tagBlock = `<div class="entry-tags">` +
+      tags.map(t => `<button class="tag" type="button" data-tag="${escapeHtml(t)}">#${escapeHtml(t)}</button>`).join("") +
+      `</div>`;
+  }
+
   return `
     <article class="entry" data-id="${escapeHtml(e.id)}">
       <div class="entry-head">
@@ -1854,6 +2077,7 @@ function renderEntry(e, query){
       </div>
       ${textBlock}
       ${photos}
+      ${tagBlock}
     </article>`;
 }
 
@@ -1872,11 +2096,18 @@ function enhanceClamps(){
 }
 
 function highlightText(text, query){
-  const safe = escapeHtml(text);
-  if (!query) return safe;
-  const q = escapeHtml(query);
-  const escaped = q.replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
-  return safe.replace(new RegExp(escaped, "gi"), m => `<mark>${m}</mark>`);
+  let safe = escapeHtml(text);
+  // 1) 본문 안의 #태그 색상 강조 (앞이 줄머리/공백/괄호일 때만)
+  safe = safe.replace(/(^|[\s(])#([0-9A-Za-z_\-가-힣ㄱ-ㆎ]+)/g, '$1<span class="hash">#$2</span>');
+  // 2) 검색어 하이라이트 — HTML 태그(<...>) 바깥의 텍스트에만 적용해 마크업이 깨지지 않게
+  if (query){
+    const q = escapeHtml(query).replace(/[.*+?^${}()|[\]\\]/g, "\\$&");
+    const re = new RegExp(q, "gi");
+    safe = safe.split(/(<[^>]*>)/).map(part =>
+      part.charAt(0) === "<" ? part : part.replace(re, m => `<mark>${m}</mark>`)
+    ).join("");
+  }
+  return safe;
 }
 
 /* ============================================================
@@ -2037,8 +2268,12 @@ async function saveFromEditor(){
     storedImages = await prepareImagesForSave(id, images);
   } catch (err){
     console.error(err);
-    showToast("사진 업로드에 실패했어요");
-    return;
+    if (isOfflineError(err)){
+      storedImages = images;   // 오프라인: dataURL 그대로 저장 → 연결되면 자동 업로드
+    } else {
+      showToast("사진 업로드에 실패했어요");
+      return;
+    }
   }
   let entry;
   if (state.editing){
@@ -2068,10 +2303,11 @@ async function saveFromEditor(){
   if (i >= 0) state.entries[i] = entry;
   else state.entries.push(entry);
   state.entries.sort(sortEntries);
-  await ensureSignedUrls([entry]);
+  try { await ensureSignedUrls([entry]); } catch(_){ /* 오프라인 시 서명 URL 생략 */ }
 
   closeEditor();
   render();
+  if (pendingSyncCount() > 0) showToast("오프라인 — 저장됨, 연결되면 자동 동기화돼요");
 }
 
 $deleteBtn.addEventListener("click", () => {
@@ -2430,6 +2666,15 @@ $entries.addEventListener("click", (e) => {
     }
     return;
   }
+  // 2-2) 태그 칩 클릭 → 해당 태그로 필터(다시 누르면 해제)
+  const tagBtn = e.target.closest(".entry-tags [data-tag]");
+  if (tagBtn){
+    const t = tagBtn.dataset.tag;
+    state.tagFilter = (state.tagFilter === t) ? null : t;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
   // 3) 사진 확대 (라이트박스, 좌우 넘기기)
   const img = e.target.closest(".entry-photos img");
   if (img){
@@ -2452,6 +2697,13 @@ $months.addEventListener("click", (e) => {
   if (!btn) return;
   const m = btn.dataset.month || null;
   state.monthFilter = (m === "" || m === null) ? null : m;
+  render();
+});
+$tagbar.addEventListener("click", (e) => {
+  const btn = e.target.closest(".pill");
+  if (!btn) return;
+  const t = btn.dataset.tag || "";
+  state.tagFilter = (t === "" || state.tagFilter === t) ? null : t;
   render();
 });
 
