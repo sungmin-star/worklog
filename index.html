@@ -236,6 +236,7 @@
     color:var(--muted);
   }
   .search input{
+    -webkit-appearance:none; appearance:none;
     border:none; outline:none;
     background:transparent;
     width:100%;
@@ -922,7 +923,7 @@
     <div class="controls">
       <label class="search">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="11" cy="11" r="7"></circle><path d="M20 20l-3.5-3.5"></path></svg>
-        <input id="searchInput" type="search" placeholder="기록 검색" aria-label="기록 본문 검색" autocomplete="off" />
+        <input id="searchInput" type="text" inputmode="search" enterkeyhint="search" placeholder="기록 검색" aria-label="기록 본문 검색" autocomplete="off" />
       </label>
       <button class="btn new" id="newBtn" aria-label="새 기록 작성">새 기록</button>
     </div>
