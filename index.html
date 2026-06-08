@@ -184,9 +184,11 @@
     transition:opacity .18s ease, transform .18s ease;
   }
   .menu[data-open="true"]{ opacity:1; transform:translateY(0) scale(1); pointer-events:auto; }
-  /* 메뉴 열렸을 때 뒤 영역을 잠시 숨겨 iOS 네이티브 컨트롤 비침(겹침 띠) 방지 */
+  /* 메뉴 열렸을 때 뒤 영역을 반투명하게 죽여 메뉴를 부각시키고
+     위젯 이동 없이 자연스럽게 뒤로 물러나게 함.
+     opacity<1 이면 독립 합성 레이어가 되어 iOS 네이티브 입력칸 비침(겹침 띠)도 함께 방지됨 */
   body.menu-open .controls,
-  body.menu-open .months{ visibility:hidden; }
+  body.menu-open .months{ opacity:.4; pointer-events:none; }
   .menu button{
     display:block;
     width:100%;
@@ -219,6 +221,7 @@
     gap:10px;
     align-items:center;
     margin-bottom:18px;
+    transition:opacity .18s ease;
   }
   .search{
     flex:1;
@@ -286,6 +289,7 @@
     margin:0 -4px 30px;
     padding-left:4px; padding-right:4px;
     scrollbar-width:none;
+    transition:opacity .18s ease;
   }
   .months::-webkit-scrollbar{ display:none; }
   .pill{
