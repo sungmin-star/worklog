@@ -186,6 +186,43 @@
   .photo-cell img{ width:100%; height:100%; object-fit:cover; display:block; transition:transform .2s ease; }
   .photo-cell:hover img{ transform:scale(1.05); }
   body.view-photos .controls, body.view-photos .months, body.view-photos .tagbar{ display:none; }
+  body.view-calendar .controls, body.view-calendar .months, body.view-calendar .tagbar{ display:none; }
+
+  /* 사이드바 하단 구역(사진·프로젝트·휴지통) 구분선 */
+  .sb-bottom{ border-top:1px solid var(--line); padding-top:14px; margin-top:6px; }
+
+  /* ---------- 캘린더 뷰 ---------- */
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-title{ font-size:17px; font-weight:700; }
+  .cal-nav{ width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--text); font-size:20px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
+  .cal-nav:hover{ background:var(--surface-2); }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+  .cal-dow{ text-align:center; font-size:12px; color:var(--muted); padding:4px 0 8px; font-weight:600; }
+  .cal-dow.sun{ color:var(--danger); }
+  .cal-dow.sat{ color:var(--accent); }
+  .cal-cell{ aspect-ratio:1; border:none; background:transparent; border-radius:10px; position:relative; display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--text); }
+  .cal-cell.empty{ visibility:hidden; }
+  .cal-cell[disabled]{ color:var(--muted); opacity:.45; cursor:default; }
+  .cal-cell.has{ background:var(--surface-2); cursor:pointer; font-weight:700; }
+  .cal-cell.has:hover{ background:var(--line); }
+  .cal-cell.today{ box-shadow:inset 0 0 0 2px var(--accent); }
+  .cal-dot{ position:absolute; bottom:5px; left:50%; transform:translateX(-50%); min-width:13px; height:13px; padding:0 3px; border-radius:7px; background:var(--accent); color:var(--accent-text); font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; }
+  .cal-foot{ margin-top:18px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* ---------- 즐겨찾기 핀 + 글자수 ---------- */
+  .entry-pin{
+    width:32px; height:32px; border-radius:50%; border:none;
+    background:var(--surface-2); color:var(--muted); font-size:16px; line-height:1;
+    display:inline-flex; align-items:center; justify-content:center; flex-shrink:0;
+    opacity:0; transition:opacity .18s ease, color .15s ease, background-color .15s ease;
+  }
+  .entry:hover .entry-pin{ opacity:1; }
+  .entry-pin.pinned{ opacity:1; color:var(--accent); }
+  .entry-pin:hover{ background:var(--line); color:var(--accent); }
+  @media (hover:none){ .entry-pin{ opacity:1; } }
+  .entry.is-pinned{ box-shadow:inset 3px 0 0 var(--accent); }
+  .entry-chars{ margin-left:9px; font-size:11.5px; color:var(--muted); opacity:.85; }
+  .char-counter{ margin-top:6px; text-align:right; font-size:12px; color:var(--muted); }
 
   /* ---------- Header ---------- */
   header.top{
@@ -1206,6 +1243,7 @@
       <div class="field">
         <label for="textInput">본문</label>
         <textarea id="textInput" placeholder="오늘은 무엇을 하셨나요?"></textarea>
+        <div class="char-counter" id="charCounter">0자</div>
       </div>
       <div class="field">
         <label>사진</label>
@@ -1400,11 +1438,14 @@ const state = {
   entries: [],         // loaded entries (휴지통 제외)
   trash: [],           // 삭제되어 휴지통에 있는 기록
   projects: [],        // 프로젝트(목표·할일 체크리스트 포함)
-  view: "timeline",    // "timeline" | "photos" (좌측 사이드바 카테고리)
+  view: "timeline",    // "timeline" | "photos" | "calendar"
   search: "",
   monthFilter: null,   // "YYYY-MM" or null
   tagFilter: null,     // "#태그" 필터 (태그명, # 제외) or null
   linkFilter: null,    // [[위키링크]] 필터 (링크명) or null
+  dayFilter: null,     // "YYYY-MM-DD" (캘린더에서 특정 날짜 선택) or null
+  favFilter: false,    // ⭐ 즐겨찾기만 보기
+  calMonth: null,      // 캘린더가 보여주는 달 "YYYY-MM" (null=이번 달)
   editing: null,       // entry being edited, or null when creating
   draftImages: [],     // dataURLs in editor
 };
@@ -1502,6 +1543,7 @@ function entryToRow(e){
     text: e.text || "", images: e.images || [],
     created_at: e.createdAt, updated_at: e.updatedAt,
     deleted_at: e.deletedAt != null ? e.deletedAt : null,
+    pinned_at: e.pinnedAt != null ? e.pinnedAt : null,
   };
 }
 // 네트워크성 실패만 큐에 넣는다(RLS 등 진짜 오류는 그대로 throw 되게 구분)
@@ -1702,6 +1744,7 @@ function makeSupabaseStorage(){
         createdAt: Number(row.created_at) || 0,
         updatedAt: Number(row.updated_at) || 0,
         deletedAt: row.deleted_at != null ? Number(row.deleted_at) : null,
+        pinnedAt: row.pinned_at != null ? Number(row.pinned_at) : null,
       });
     }
     loaded = true;
@@ -2306,6 +2349,8 @@ function filteredEntries(){
   const parsed = parseSearch(state.search.trim());
   const hasSearch = parsed.inc.length || parsed.exc.length || parsed.tags.length;
   return state.entries.filter(e => {
+    if (state.favFilter && !e.pinnedAt) return false;
+    if (state.dayFilter && e.date !== state.dayFilter) return false;
     if (state.monthFilter && !e.date.startsWith(state.monthFilter)) return false;
     if (state.tagFilter && !extractTags(e.text).includes(state.tagFilter)) return false;
     if (state.linkFilter && !extractLinks(e.text).includes(state.linkFilter)) return false;
@@ -2317,15 +2362,11 @@ function filteredEntries(){
 function render(){
   renderSidebar();
   renderStats();
-  if (state.view === "photos"){
-    document.body.classList.add("view-photos");
-    renderPhotos();
-  } else {
-    document.body.classList.remove("view-photos");
-    renderMonths();
-    renderTags();
-    renderEntries();
-  }
+  document.body.classList.toggle("view-photos", state.view === "photos");
+  document.body.classList.toggle("view-calendar", state.view === "calendar");
+  if (state.view === "photos"){ renderPhotos(); }
+  else if (state.view === "calendar"){ renderCalendar(); }
+  else { renderMonths(); renderTags(); renderEntries(); }
 }
 
 /* ── 좌측 카테고리 사이드바 ───────────────────────────────── */
@@ -2339,14 +2380,14 @@ function renderSidebar(){
   const tags = [...tagCounts.entries()].sort((a, b) => b[1] - a[1] || a[0].localeCompare(b[0], "ko")).slice(0, 40);
   const photoN = state.entries.reduce((a, e) => a + (e.images?.length || 0), 0);
   const onTimeline = state.view === "timeline";
-  const isAll = onTimeline && !state.monthFilter && !state.tagFilter && !state.linkFilter && !state.search;
+  const favN = state.entries.filter(e => e.pinnedAt).length;
+  const isAll = onTimeline && !state.monthFilter && !state.tagFilter && !state.linkFilter && !state.search && !state.favFilter && !state.dayFilter;
   $sidebar.innerHTML =
     `<div class="sb-brand">기록</div>` +
     `<div class="sb-section">` +
       `<button class="sb-item ${isAll ? "active" : ""}" data-nav="all">📋 전체 기록 <span class="sb-c">${state.entries.length}</span></button>` +
-      `<button class="sb-item ${state.view === "photos" ? "active" : ""}" data-nav="photos">🖼 사진 <span class="sb-c">${photoN}</span></button>` +
-      `<button class="sb-item" data-nav="projects">🗂 프로젝트 <span class="sb-c">${state.projects.length}</span></button>` +
-      `<button class="sb-item" data-nav="trash">🗑 휴지통</button>` +
+      `<button class="sb-item ${onTimeline && state.favFilter ? "active" : ""}" data-nav="fav">⭐ 즐겨찾기 <span class="sb-c">${favN}</span></button>` +
+      `<button class="sb-item ${state.view === "calendar" ? "active" : ""}" data-nav="calendar">📅 캘린더</button>` +
     `</div>` +
     `<div class="sb-section"><div class="sb-title">월별</div>` +
       (months.length ? months.map(ym =>
@@ -2357,6 +2398,11 @@ function renderSidebar(){
       (tags.length ? tags.map(([t, c]) =>
         `<button class="sb-sub ${onTimeline && state.tagFilter === t ? "active" : ""}" data-tag="${escapeHtml(t)}">#${escapeHtml(t)} <span class="sb-c">${c}</span></button>`).join("")
         : `<div class="sb-empty">태그 없음</div>`) +
+    `</div>` +
+    `<div class="sb-section sb-bottom">` +
+      `<button class="sb-item ${state.view === "photos" ? "active" : ""}" data-nav="photos">🖼 사진 <span class="sb-c">${photoN}</span></button>` +
+      `<button class="sb-item" data-nav="projects">🗂 프로젝트 <span class="sb-c">${state.projects.length}</span></button>` +
+      `<button class="sb-item" data-nav="trash">🗑 휴지통</button>` +
     `</div>`;
 }
 
@@ -2365,23 +2411,27 @@ function closeSidebar(){ $sidebar.dataset.open = "false"; $sidebarOverlay.datase
 
 document.getElementById("sidebarToggle").addEventListener("click", openSidebar);
 $sidebarOverlay.addEventListener("click", closeSidebar);
+function clearFilters(){
+  state.monthFilter = null; state.tagFilter = null; state.linkFilter = null;
+  state.dayFilter = null; state.favFilter = false; state.search = "";
+  const si = document.getElementById("searchInput"); if (si) si.value = "";
+}
 $sidebar.addEventListener("click", (e) => {
   const nav = e.target.closest("[data-nav]");
   if (nav){
     const k = nav.dataset.nav;
-    if (k === "all"){
-      state.view = "timeline"; state.monthFilter = null; state.tagFilter = null; state.linkFilter = null; state.search = "";
-      const si = document.getElementById("searchInput"); if (si) si.value = "";
-      render(); window.scrollTo({ top: 0 });
-    } else if (k === "photos"){ state.view = "photos"; render(); window.scrollTo({ top: 0 }); }
+    if (k === "all"){ state.view = "timeline"; clearFilters(); render(); window.scrollTo({ top: 0 }); }
+    else if (k === "fav"){ state.view = "timeline"; clearFilters(); state.favFilter = true; render(); window.scrollTo({ top: 0 }); }
+    else if (k === "calendar"){ state.view = "calendar"; render(); window.scrollTo({ top: 0 }); }
+    else if (k === "photos"){ state.view = "photos"; render(); window.scrollTo({ top: 0 }); }
     else if (k === "projects"){ openProjects(); }
     else if (k === "trash"){ openTrash(); }
     closeSidebar(); return;
   }
   const mo = e.target.closest("[data-month]");
-  if (mo){ state.view = "timeline"; state.monthFilter = mo.dataset.month; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
+  if (mo){ state.view = "timeline"; clearFilters(); state.monthFilter = mo.dataset.month; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
   const tg = e.target.closest("[data-tag]");
-  if (tg){ state.view = "timeline"; state.tagFilter = tg.dataset.tag; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
+  if (tg){ state.view = "timeline"; clearFilters(); state.tagFilter = tg.dataset.tag; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
 });
 
 /* ── 사진 갤러리 뷰 ───────────────────────────────────────── */
@@ -2397,6 +2447,41 @@ function renderPhotos(){
     `<div class="photo-grid">` +
     items.map(it => `<button class="photo-cell" type="button" data-pid="${escapeHtml(it.id)}" data-idx="${it.i}"><img src="${escapeHtml(imgSrc(it.src))}" alt="" loading="lazy"></button>`).join("") +
     `</div>`;
+}
+
+/* ── 캘린더 뷰 ────────────────────────────────────────────── */
+function shiftMonth(ym, delta){
+  const [y, m] = ym.split("-").map(Number);
+  return todayISOFrom(new Date(y, m - 1 + delta, 1)).slice(0, 7);
+}
+function renderCalendar(){
+  const ym = state.calMonth || todayISO().slice(0, 7);
+  const [y, mo] = ym.split("-").map(Number);
+  const startDow = new Date(y, mo - 1, 1).getDay();   // 0=일
+  const daysInMonth = new Date(y, mo, 0).getDate();
+  const counts = new Map();
+  for (const e of state.entries) if (e.date.startsWith(ym)) counts.set(e.date, (counts.get(e.date) || 0) + 1);
+  const today = todayISO();
+  const wd = ["일", "월", "화", "수", "목", "금", "토"];
+  let html =
+    `<div class="cal-head">` +
+      `<button class="cal-nav" type="button" data-cal="-1" aria-label="이전 달">‹</button>` +
+      `<div class="cal-title">${escapeHtml(formatMonth(ym))}</div>` +
+      `<button class="cal-nav" type="button" data-cal="1" aria-label="다음 달">›</button>` +
+    `</div>` +
+    `<div class="cal-grid">` +
+    wd.map((d, i) => `<div class="cal-dow ${i === 0 ? "sun" : ""} ${i === 6 ? "sat" : ""}">${d}</div>`).join("");
+  for (let i = 0; i < startDow; i++) html += `<div class="cal-cell empty"></div>`;
+  for (let d = 1; d <= daysInMonth; d++){
+    const iso = `${ym}-${String(d).padStart(2, "0")}`;
+    const c = counts.get(iso) || 0;
+    html += `<button class="cal-cell ${c ? "has" : ""} ${iso === today ? "today" : ""}" type="button" ${c ? `data-calday="${iso}"` : "disabled"}>` +
+      `<span class="cal-d">${d}</span>${c ? `<span class="cal-dot">${c > 1 ? c : ""}</span>` : ""}</button>`;
+  }
+  html += `</div>`;
+  const monthN = [...counts.values()].reduce((a, b) => a + b, 0);
+  html += `<div class="cal-foot">${escapeHtml(formatMonth(ym))} · 기록 <b>${monthN}</b>건 · <b>${counts.size}</b>일</div>`;
+  $entries.innerHTML = html;
 }
 
 function renderTags(){
@@ -2436,6 +2521,10 @@ function currentStreak(entries){
   return streak;
 }
 
+// 글자수(공백 제외) — 작성량 통계용
+function textLen(t){ return (t || "").replace(/\s+/g, "").length; }
+function fmtNum(n){ return n.toLocaleString("ko-KR"); }
+
 function renderStats(){
   const total = state.entries.length;
   const days = new Set(state.entries.map(e => e.date)).size;
@@ -2444,17 +2533,21 @@ function renderStats(){
     $stats.innerHTML = `아직 기록이 없습니다`;
     return;
   }
+  const chars = state.entries.reduce((acc, e) => acc + textLen(e.text), 0);
   let html =
     `총 <b>${total}</b>건` +
     `<span class="sep">·</span>` +
     `<b>${days}</b>일 기록` +
     `<span class="sep">·</span>` +
-    `사진 <b>${photos}</b>장`;
+    `사진 <b>${photos}</b>장` +
+    `<span class="sep">·</span>` +
+    `✍ <b>${fmtNum(chars)}</b>자`;
   const streak = currentStreak(state.entries);
   if (streak >= 2) html += `<span class="sep">·</span>🔥 <b>${streak}</b>일 연속`;
   if (state.monthFilter){
-    const cnt = state.entries.filter(e => e.date.startsWith(state.monthFilter)).length;
-    html += `<span class="sep">·</span>${escapeHtml(formatMonth(state.monthFilter))} <b>${cnt}</b>건`;
+    const ms = state.entries.filter(e => e.date.startsWith(state.monthFilter));
+    const mc = ms.reduce((a, e) => a + textLen(e.text), 0);
+    html += `<span class="sep">·</span>${escapeHtml(formatMonth(state.monthFilter))} <b>${ms.length}</b>건·<b>${fmtNum(mc)}</b>자`;
   }
   $stats.innerHTML = html;
 }
@@ -2477,18 +2570,21 @@ function renderMonths(){
   $months.style.display = months.length === 0 ? "none" : "";
 }
 
-// [[링크]] 필터 활성 시 상단 배너(백링크 보기)
-function linkBannerHtml(count){
-  if (!state.linkFilter) return "";
-  return `<div class="link-banner">🔗 <b>[[${escapeHtml(state.linkFilter)}]]</b> 언급한 기록 ${count}개` +
-    `<button class="link-clear" type="button" aria-label="링크 필터 해제">✕</button></div>`;
+// 특수 필터(날짜·즐겨찾기·링크) 활성 시 상단 배너
+function filterBannerHtml(count){
+  let label = "";
+  if (state.dayFilter) label = `📅 <b>${escapeHtml(formatDateLine(state.dayFilter).full.split(" · ")[0])}</b> 기록 ${count}개`;
+  else if (state.favFilter) label = `⭐ <b>즐겨찾기</b> ${count}개`;
+  else if (state.linkFilter) label = `🔗 <b>[[${escapeHtml(state.linkFilter)}]]</b> 언급한 기록 ${count}개`;
+  else return "";
+  return `<div class="link-banner">${label}<button class="filter-clear" type="button" aria-label="필터 해제">✕</button></div>`;
 }
 
 function renderEntries(){
   const list = filteredEntries();
-  const banner = linkBannerHtml(list.length);
+  const banner = filterBannerHtml(list.length);
   if (list.length === 0){
-    const isFilter = !!(state.search || state.monthFilter || state.tagFilter || state.linkFilter);
+    const isFilter = !!(state.search || state.monthFilter || state.tagFilter || state.linkFilter || state.dayFilter || state.favFilter);
     $entries.innerHTML = banner + `
       <div class="empty">
         <div class="e-title">${isFilter ? "결과가 없어요" : "오늘의 첫 기록"}</div>
@@ -2544,11 +2640,14 @@ function renderEntry(e, query){
       `</div>`;
   }
 
+  const len = textLen(e.text);
+  const metaHtml = len ? `<span class="entry-chars">${fmtNum(len)}자</span>` : "";
   return `
-    <article class="entry" data-id="${escapeHtml(e.id)}">
+    <article class="entry ${e.pinnedAt ? "is-pinned" : ""}" data-id="${escapeHtml(e.id)}">
       <div class="entry-head">
-        <div class="entry-date">${dateHtml}</div>
+        <div class="entry-date">${dateHtml}${metaHtml}</div>
         <div class="entry-actions">
+          <button class="entry-pin ${e.pinnedAt ? "pinned" : ""}" type="button" data-pin="${escapeHtml(e.id)}" aria-label="즐겨찾기" title="즐겨찾기">${e.pinnedAt ? "★" : "☆"}</button>
           <button class="entry-edit" type="button" data-edit="${escapeHtml(e.id)}" aria-label="기록 수정">
             <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"></path><path d="M16.5 3.5a2.121 2.121 0 1 1 3 3L7 19l-4 1 1-4 12.5-12.5z"></path></svg>
           </button>
@@ -2669,6 +2768,7 @@ function openEditor(entry, opts){
   $dateText.value = iso;
   $datePick.value = iso;
   $textInput.value = entry ? (entry.text || "") : ((opts && opts.prefill) || "");
+  updateCharCounter();
   lastAutoDate = iso;
   recognizeDateField();
   $deleteBtn.hidden = !entry;
@@ -2754,6 +2854,14 @@ $datePick.addEventListener("change", () => {
 });
 // 본문 입력 → 날짜 자동 인식 (첫 줄에 날짜를 적으면 날짜칸 자동 반영)
 $textInput.addEventListener("input", autoDetectDateFromText);
+const $charCounter = document.getElementById("charCounter");
+function updateCharCounter(){
+  if (!$charCounter) return;
+  const total = ($textInput.value || "").length;
+  const noSpace = textLen($textInput.value);
+  $charCounter.textContent = `${fmtNum(noSpace)}자 (공백포함 ${fmtNum(total)})`;
+}
+$textInput.addEventListener("input", updateCharCounter);
 
 document.getElementById("cancelBtn").addEventListener("click", closeEditor);
 document.getElementById("saveBtn").addEventListener("click", saveFromEditor);
@@ -3138,12 +3246,40 @@ document.getElementById("importFile").addEventListener("change", async (e) => {
    Event delegation: cards
    ============================================================ */
 $entries.addEventListener("click", (e) => {
+  // 0a) 캘린더 이전/다음 달
+  const calNav = e.target.closest("[data-cal]");
+  if (calNav){
+    const base = state.calMonth || todayISO().slice(0, 7);
+    state.calMonth = shiftMonth(base, Number(calNav.dataset.cal));
+    renderCalendar();
+    return;
+  }
+  // 0b) 캘린더 날짜 클릭 → 그 날 기록 보기
+  const calDay = e.target.closest("[data-calday]");
+  if (calDay){
+    state.view = "timeline"; clearFilters(); state.dayFilter = calDay.dataset.calday;
+    render(); window.scrollTo({ top: 0 });
+    return;
+  }
   // 0) 사진 갤러리 셀 → 라이트박스
   const cell = e.target.closest(".photo-cell");
   if (cell){
     const entry = state.entries.find(x => x.id === cell.dataset.pid);
     const idx = Number(cell.dataset.idx || 0);
     if (entry && entry.images && entry.images[idx]) openLightbox(entry.images.map(imgSrc), idx);
+    return;
+  }
+  // 0c) 즐겨찾기(핀) 토글
+  const pinBtn = e.target.closest("[data-pin]");
+  if (pinBtn){
+    const entry = state.entries.find(x => x.id === pinBtn.dataset.pin);
+    if (entry){
+      entry.pinnedAt = entry.pinnedAt ? null : Date.now();
+      entry.updatedAt = Date.now();
+      saveEntry(entry).catch(err => { console.error(err); showToast("저장에 실패했어요"); });
+      updateSyncIndicator();
+      render();
+    }
     return;
   }
   // 1) 수정 버튼
@@ -3205,9 +3341,9 @@ $entries.addEventListener("click", (e) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
-  // 2-4) 링크 필터 배너의 해제(✕)
-  if (e.target.closest(".link-clear")){
-    state.linkFilter = null;
+  // 2-4) 필터 배너의 해제(✕) — 날짜·즐겨찾기·링크 모두
+  if (e.target.closest(".filter-clear")){
+    state.linkFilter = null; state.dayFilter = null; state.favFilter = false;
     render();
     return;
   }
