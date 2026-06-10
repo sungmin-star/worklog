@@ -883,6 +883,27 @@
   .date-hint.warn .dot{ background:var(--danger); }
   @keyframes hintIn{ from{ opacity:0; transform:translateY(-2px); } to{ opacity:1; transform:none; } }
 
+  /* ---------- 분류(카테고리) ---------- */
+  .cat-manage{ margin-left:8px; font-size:12px; font-weight:600; color:var(--accent); background:none; border:none; cursor:pointer; padding:0; }
+  .cat-row{ display:flex; flex-wrap:wrap; gap:7px; }
+  .cat-chip{ display:inline-flex; align-items:center; gap:6px; padding:7px 12px; border-radius:999px;
+    border:1px solid var(--line); background:var(--surface-2); color:var(--text); font-size:13px; cursor:pointer;
+    transition:border-color .12s ease, background-color .12s ease; }
+  .cat-chip:hover{ border-color:var(--line-strong); }
+  .cat-chip.on{ border-color:var(--c, var(--accent)); box-shadow:inset 0 0 0 1px var(--c, var(--accent)); background:var(--surface); font-weight:600; }
+  .cat-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none; }
+  .cat-x{ margin-left:1px; color:var(--muted); font-size:11px; line-height:1; padding:1px 3px; border-radius:6px; }
+  .cat-x:hover{ color:var(--danger); background:var(--surface-2); }
+  .cat-add{ color:var(--muted); border-style:dashed; }
+  .cat-addbox{ display:inline-flex; }
+  .cat-input{ padding:7px 12px; border-radius:999px; border:1px solid var(--accent); background:var(--surface);
+    color:var(--text); font-size:13px; outline:none; width:130px; }
+  .cat-badge{ display:inline-flex; align-items:center; margin-left:8px; font-size:11.5px; font-weight:600; color:var(--c, var(--muted));
+    border:1px solid var(--c, var(--line)); background:transparent; border-radius:999px; padding:1px 9px; line-height:1.7;
+    cursor:pointer; vertical-align:middle; }
+  .cat-badge:hover{ background:var(--surface-2); }
+  .sb-cat-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none; }
+
   .dropzone{
     border:1.5px dashed var(--line-strong);
     border-radius:var(--radius-sm);
@@ -1296,6 +1317,10 @@
         <div class="date-hint" id="dateHint" hidden></div>
       </div>
       <div class="field">
+        <label>분류 <button type="button" class="cat-manage" id="catManageBtn">관리</button></label>
+        <div class="cat-row" id="catRow"></div>
+      </div>
+      <div class="field">
         <label for="textInput">본문</label>
         <textarea id="textInput" placeholder="오늘은 무엇을 하셨나요?"></textarea>
         <div class="char-counter" id="charCounter">0자</div>
@@ -1517,9 +1542,12 @@ const state = {
   linkFilter: null,    // [[위키링크]] 필터 (링크명) or null
   dayFilter: null,     // "YYYY-MM-DD" (캘린더에서 특정 날짜 선택) or null
   favFilter: false,    // ⭐ 즐겨찾기만 보기
+  catFilter: null,     // 분류(카테고리) 필터명 or null
   calMonth: null,      // 캘린더가 보여주는 달 "YYYY-MM" (null=이번 달)
   editing: null,       // entry being edited, or null when creating
   draftImages: [],     // dataURLs in editor
+  draftCategory: "",   // 에디터에서 선택한 분류
+  catManage: false,    // 에디터 분류 '관리(삭제)' 모드
 };
 
 /* ============================================================
@@ -1613,6 +1641,7 @@ function entryToRow(e){
   return {
     id: e.id, user_id: currentUser.id, date: e.date,
     text: e.text || "", images: e.images || [],
+    category: e.category || "",
     created_at: e.createdAt, updated_at: e.updatedAt,
     deleted_at: e.deletedAt != null ? e.deletedAt : null,
     pinned_at: e.pinnedAt != null ? e.pinnedAt : null,
@@ -1813,6 +1842,7 @@ function makeSupabaseStorage(){
         date: row.date,
         text: row.text || "",
         images: Array.isArray(row.images) ? row.images : [],
+        category: row.category || "",
         createdAt: Number(row.created_at) || 0,
         updatedAt: Number(row.updated_at) || 0,
         deletedAt: row.deleted_at != null ? Number(row.deleted_at) : null,
@@ -2368,6 +2398,43 @@ function extractLinks(text){
   return out;
 }
 
+/* ── 분류(카테고리) ───────────────────────────────────────── */
+const CAT_KEY = "worklog:categories";
+const CAT_PALETTE = ["#c9a961","#6c9bd1","#7fb47c","#d08a6a","#a98bd0","#5bb0b8","#d6789f","#b08a5a"];
+function loadCatList(){
+  try { const a = JSON.parse(localStorage.getItem(CAT_KEY)); if (Array.isArray(a)) return a.filter(c => c && c.name); } catch(_){}
+  return [{ name:"작업", color:CAT_PALETTE[0] }, { name:"스케줄", color:CAT_PALETTE[1] }];
+}
+function saveCatList(){ try { localStorage.setItem(CAT_KEY, JSON.stringify(catList)); } catch(_){} }
+let catList = loadCatList();
+// 저장된 목록 + 실제 기록에 쓰인 분류(다른 기기에서 만든 것)를 합쳐서 보여줌
+function getCategories(){
+  const map = new Map(catList.map(c => [c.name, c]));
+  let pi = catList.length;
+  for (const e of state.entries){
+    const c = (e.category || "").trim();
+    if (c && !map.has(c)) map.set(c, { name:c, color:CAT_PALETTE[pi++ % CAT_PALETTE.length] });
+  }
+  return [...map.values()];
+}
+function catColor(name){ const c = getCategories().find(x => x.name === name); return c ? c.color : "var(--muted)"; }
+function addCategory(name){
+  name = (name || "").trim();
+  if (!name || catList.some(c => c.name === name)) return false;
+  catList.push({ name, color:CAT_PALETTE[catList.length % CAT_PALETTE.length] });
+  saveCatList();
+  return true;
+}
+function removeCategory(name){
+  catList = catList.filter(c => c.name !== name);
+  saveCatList();
+  // 이 분류를 쓰던 기록은 '미분류'로 풀어줌(저장·동기화)
+  for (const e of state.entries){
+    if ((e.category || "") === name){ e.category = ""; e.updatedAt = Date.now(); saveEntry(e).catch(() => {}); }
+  }
+  if (state.catFilter === name) state.catFilter = null;
+}
+
 /* 날짜를 사람이 검색할 법한 여러 형태로 펼쳐 검색 대상에 포함
    예) 2026-06-09 → "2026년 6월 9일", "2026년 6월", "6월 9일", "6월", "9일", "2026.06.09" … */
 function dateSearchText(iso){
@@ -2422,6 +2489,7 @@ function filteredEntries(){
   const hasSearch = parsed.inc.length || parsed.exc.length || parsed.tags.length;
   return state.entries.filter(e => {
     if (state.favFilter && !e.pinnedAt) return false;
+    if (state.catFilter && (e.category || "") !== state.catFilter) return false;
     if (state.dayFilter && e.date !== state.dayFilter) return false;
     if (state.monthFilter && !e.date.startsWith(state.monthFilter)) return false;
     if (state.tagFilter && !extractTags(e.text).includes(state.tagFilter)) return false;
@@ -2455,7 +2523,10 @@ function renderSidebar(){
   const photoN = state.entries.reduce((a, e) => a + (e.images?.length || 0), 0);
   const onTimeline = state.view === "timeline";
   const favN = state.entries.filter(e => e.pinnedAt).length;
-  const isAll = onTimeline && !state.monthFilter && !state.tagFilter && !state.linkFilter && !state.search && !state.favFilter && !state.dayFilter;
+  const cats = getCategories();
+  const catCounts = new Map();
+  for (const e of state.entries){ const c = e.category || ""; if (c) catCounts.set(c, (catCounts.get(c) || 0) + 1); }
+  const isAll = onTimeline && !state.monthFilter && !state.tagFilter && !state.linkFilter && !state.search && !state.favFilter && !state.dayFilter && !state.catFilter;
   $sidebar.innerHTML =
     `<div class="sb-brand">기록</div>` +
     `<div class="sb-section">` +
@@ -2463,6 +2534,11 @@ function renderSidebar(){
       `<button class="sb-item ${onTimeline && state.favFilter ? "active" : ""}" data-nav="fav">⭐ 즐겨찾기 <span class="sb-c">${favN}</span></button>` +
       `<button class="sb-item ${state.view === "calendar" ? "active" : ""}" data-nav="calendar">📅 캘린더</button>` +
       `<button class="sb-item ${state.view === "graph" ? "active" : ""}" data-nav="graph">🕸 그래프</button>` +
+    `</div>` +
+    `<div class="sb-section"><div class="sb-title">분류</div>` +
+      (cats.length ? cats.map(c =>
+        `<button class="sb-sub ${onTimeline && state.catFilter === c.name ? "active" : ""}" data-cat="${escapeHtml(c.name)}"><span class="sb-cat-dot" style="background:${c.color}"></span>${escapeHtml(c.name)} <span class="sb-c">${catCounts.get(c.name) || 0}</span></button>`).join("")
+        : `<div class="sb-empty">분류 없음</div>`) +
     `</div>` +
     `<div class="sb-section"><div class="sb-title">월별</div>` +
       (months.length ? months.map(ym =>
@@ -2488,7 +2564,7 @@ document.getElementById("sidebarToggle").addEventListener("click", openSidebar);
 $sidebarOverlay.addEventListener("click", closeSidebar);
 function clearFilters(){
   state.monthFilter = null; state.tagFilter = null; state.linkFilter = null;
-  state.dayFilter = null; state.favFilter = false; state.search = "";
+  state.dayFilter = null; state.favFilter = false; state.search = ""; state.catFilter = null;
   const si = document.getElementById("searchInput"); if (si) si.value = "";
 }
 $sidebar.addEventListener("click", (e) => {
@@ -2508,6 +2584,8 @@ $sidebar.addEventListener("click", (e) => {
   if (mo){ state.view = "timeline"; clearFilters(); state.monthFilter = mo.dataset.month; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
   const tg = e.target.closest("[data-tag]");
   if (tg){ state.view = "timeline"; clearFilters(); state.tagFilter = tg.dataset.tag; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
+  const ca = e.target.closest("[data-cat]");
+  if (ca){ state.view = "timeline"; clearFilters(); state.catFilter = ca.dataset.cat; render(); closeSidebar(); window.scrollTo({ top: 0 }); return; }
 });
 
 /* ── 사진 갤러리 뷰 ───────────────────────────────────────── */
@@ -2652,6 +2730,7 @@ function filterBannerHtml(count){
   if (state.dayFilter) label = `📅 <b>${escapeHtml(formatDateLine(state.dayFilter).full.split(" · ")[0])}</b> 기록 ${count}개`;
   else if (state.favFilter) label = `⭐ <b>즐겨찾기</b> ${count}개`;
   else if (state.linkFilter) label = `🔗 <b>[[${escapeHtml(state.linkFilter)}]]</b> 언급한 기록 ${count}개`;
+  else if (state.catFilter) label = `<span class="cat-dot" style="background:${catColor(state.catFilter)}"></span> <b>${escapeHtml(state.catFilter)}</b> 분류 ${count}개`;
   else return "";
   return `<div class="link-banner">${label}<button class="filter-clear" type="button" aria-label="필터 해제">✕</button></div>`;
 }
@@ -2660,7 +2739,7 @@ function renderEntries(){
   const list = filteredEntries();
   const banner = filterBannerHtml(list.length);
   if (list.length === 0){
-    const isFilter = !!(state.search || state.monthFilter || state.tagFilter || state.linkFilter || state.dayFilter || state.favFilter);
+    const isFilter = !!(state.search || state.monthFilter || state.tagFilter || state.linkFilter || state.dayFilter || state.favFilter || state.catFilter);
     $entries.innerHTML = banner + `
       <div class="empty">
         <div class="e-title">${isFilter ? "결과가 없어요" : "오늘의 첫 기록"}</div>
@@ -2718,10 +2797,11 @@ function renderEntry(e, query){
 
   const len = textLen(e.text);
   const metaHtml = len ? `<span class="entry-chars">${fmtNum(len)}자</span>` : "";
+  const catBadge = e.category ? `<button class="cat-badge" type="button" data-catfilter="${escapeHtml(e.category)}" style="--c:${catColor(e.category)}" title="‘${escapeHtml(e.category)}’ 분류만 보기">${escapeHtml(e.category)}</button>` : "";
   return `
     <article class="entry ${e.pinnedAt ? "is-pinned" : ""}" data-id="${escapeHtml(e.id)}">
       <div class="entry-head">
-        <div class="entry-date">${dateHtml}${metaHtml}</div>
+        <div class="entry-date">${dateHtml}${catBadge}${metaHtml}</div>
         <div class="entry-actions">
           <button class="entry-pin ${e.pinnedAt ? "pinned" : ""}" type="button" data-pin="${escapeHtml(e.id)}" aria-label="즐겨찾기" title="즐겨찾기">${e.pinnedAt ? "★" : "☆"}</button>
           <button class="entry-edit" type="button" data-edit="${escapeHtml(e.id)}" aria-label="기록 수정">
@@ -2797,8 +2877,81 @@ const $dateText = document.getElementById("dateText");
 const $datePick = document.getElementById("datePick");
 const $dateHint = document.getElementById("dateHint");
 const $textInput = document.getElementById("textInput");
+const $catRow = document.getElementById("catRow");
+const $catManageBtn = document.getElementById("catManageBtn");
 // 본문에서 자동 인식한 날짜를 기억해, 같은 값으로는 다시 덮어쓰지 않음
 let lastAutoDate = null;
+
+/* ── 에디터 분류 칩 ──────────────────────────────────────── */
+function renderCatRow(){
+  if (!$catRow) return;
+  const cats = getCategories();
+  const sel = state.draftCategory || "";
+  const manage = state.catManage;
+  let html = "";
+  // 미분류
+  html += `<button type="button" class="cat-chip ${sel === "" ? "on" : ""}" data-cat="">미분류</button>`;
+  for (const c of cats){
+    const on = sel === c.name;
+    html += `<button type="button" class="cat-chip ${on ? "on" : ""}" data-cat="${escapeHtml(c.name)}" style="--c:${c.color}">` +
+      `<span class="cat-dot" style="background:${c.color}"></span>${escapeHtml(c.name)}` +
+      (manage ? `<span class="cat-x" data-catdel="${escapeHtml(c.name)}" role="button" aria-label="${escapeHtml(c.name)} 삭제">✕</span>` : ``) +
+      `</button>`;
+  }
+  if (!manage){
+    html += `<button type="button" class="cat-chip cat-add" id="catAddChip">＋ 새 분류</button>`;
+  }
+  $catManageBtn.textContent = manage ? "완료" : "관리";
+  $catRow.innerHTML = html;
+}
+
+$catManageBtn && $catManageBtn.addEventListener("click", () => {
+  state.catManage = !state.catManage;
+  renderCatRow();
+});
+$catRow && $catRow.addEventListener("click", (e) => {
+  const del = e.target.closest("[data-catdel]");
+  if (del){
+    e.stopPropagation();
+    const name = del.dataset.catdel;
+    const used = state.entries.filter(x => (x.category || "") === name).length;
+    const proceed = () => { removeCategory(name); if (state.draftCategory === name) state.draftCategory = ""; renderCatRow(); render(); };
+    if (used > 0){
+      openConfirm({
+        title: "분류 삭제",
+        message: `<b>${escapeHtml(name)}</b> 분류를 삭제할까요? 이 분류로 지정된 <b>${used}개</b> 기록은 ‘미분류’가 돼요.`,
+        okText: "삭제", danger: true, onOk: proceed,
+      });
+    } else { proceed(); }
+    return;
+  }
+  const add = e.target.closest("#catAddChip");
+  if (add){ startAddCategory(); return; }
+  const chip = e.target.closest("[data-cat]");
+  if (chip){ state.draftCategory = chip.dataset.cat; renderCatRow(); return; }
+});
+
+function startAddCategory(){
+  const chip = document.getElementById("catAddChip");
+  if (!chip) return;
+  const wrap = document.createElement("span");
+  wrap.className = "cat-addbox";
+  wrap.innerHTML = `<input type="text" class="cat-input" maxlength="16" placeholder="분류 이름" />`;
+  chip.replaceWith(wrap);
+  const input = wrap.querySelector("input");
+  let done = false;
+  const finish = (save) => {
+    if (done) return; done = true;
+    if (save){ const name = input.value.trim(); if (name){ addCategory(name); state.draftCategory = name; } }
+    renderCatRow();
+  };
+  input.addEventListener("keydown", (ev) => {
+    if (ev.key === "Enter"){ ev.preventDefault(); finish(true); }
+    else if (ev.key === "Escape"){ ev.preventDefault(); finish(false); }
+  });
+  input.addEventListener("blur", () => finish(true));
+  setTimeout(() => input.focus(), 20);
+}
 
 function hideDateHint(){
   $dateHint.hidden = true;
@@ -2839,6 +2992,9 @@ const $deleteBtn = document.getElementById("deleteBtn");
 function openEditor(entry, opts){
   state.editing = entry || null;
   state.draftImages = entry ? [...(entry.images || [])] : [];
+  state.draftCategory = entry ? (entry.category || "") : "";
+  state.catManage = false;
+  renderCatRow();
   $editorTitle.textContent = entry ? "기록 수정" : "새 기록";
   const iso = entry ? entry.date : todayISO();
   $dateText.value = iso;
@@ -2978,12 +3134,14 @@ async function saveFromEditor(){
     entry = {
       ...state.editing,
       date, text, images: storedImages,
+      category: state.draftCategory || "",
       updatedAt: now,
     };
   } else {
     entry = {
       id,
       date, text, images: storedImages,
+      category: state.draftCategory || "",
       createdAt: now,
       updatedAt: now,
     };
@@ -3416,9 +3574,17 @@ $entries.addEventListener("click", (e) => {
     window.scrollTo({ top: 0, behavior: "smooth" });
     return;
   }
-  // 2-4) 필터 배너의 해제(✕) — 날짜·즐겨찾기·링크 모두
+  // 2-3b) 분류 뱃지 클릭 → 그 분류만 보기
+  const catB = e.target.closest("[data-catfilter]");
+  if (catB){
+    state.view = "timeline"; clearFilters(); state.catFilter = catB.dataset.catfilter;
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    return;
+  }
+  // 2-4) 필터 배너의 해제(✕) — 날짜·즐겨찾기·링크·분류 모두
   if (e.target.closest(".filter-clear")){
-    state.linkFilter = null; state.dayFilter = null; state.favFilter = false;
+    state.linkFilter = null; state.dayFilter = null; state.favFilter = false; state.catFilter = null;
     render();
     return;
   }
