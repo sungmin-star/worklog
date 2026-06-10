@@ -1123,12 +1123,14 @@
   /* ── 로그인 오버레이 ───────────────────────────────────────── */
   .auth-scrim{
     position:fixed; inset:0; z-index:1000;
-    display:none; align-items:center; justify-content:center;
+    display:none;
     padding:20px; background:rgba(0,0,0,.45); backdrop-filter:blur(4px);
+    overflow-y:auto; -webkit-overflow-scrolling:touch;
   }
-  .auth-scrim[data-open="true"]{ display:flex; }
+  /* 가로는 justify-content로 중앙, 세로는 카드 margin:auto → 짧으면 중앙·길면(회원가입) 위부터 스크롤 */
+  .auth-scrim[data-open="true"]{ display:flex; justify-content:center; }
   .auth-card{
-    width:100%; max-width:360px;
+    width:100%; max-width:360px; margin:auto;
     background:var(--surface); color:var(--text);
     border-radius:18px; padding:28px 24px;
     box-shadow:0 20px 60px rgba(0,0,0,.28);
