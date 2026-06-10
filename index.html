@@ -192,11 +192,11 @@
   .sb-bottom{ border-top:1px solid var(--line); padding-top:14px; margin-top:6px; }
 
   /* ---------- 캘린더 뷰 ---------- */
-  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin-bottom:14px; }
+  .cal-head{ display:flex; align-items:center; justify-content:space-between; margin:0 auto 14px; width:100%; max-width:460px; }
   .cal-title{ font-size:17px; font-weight:700; }
   .cal-nav{ width:36px; height:36px; border-radius:50%; border:1px solid var(--line); background:var(--surface); color:var(--text); font-size:20px; cursor:pointer; display:inline-flex; align-items:center; justify-content:center; }
   .cal-nav:hover{ background:var(--surface-2); }
-  .cal-grid{ display:grid; grid-template-columns:repeat(7,1fr); gap:5px; }
+  .cal-grid{ display:grid; grid-template-columns:repeat(7, minmax(0,1fr)); gap:5px; width:100%; max-width:460px; margin:0 auto; }
   .cal-dow{ text-align:center; font-size:12px; color:var(--muted); padding:4px 0 8px; font-weight:600; }
   .cal-dow.sun{ color:var(--danger); }
   .cal-dow.sat{ color:var(--accent); }
