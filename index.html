@@ -2340,6 +2340,11 @@ function sortEntries(a, b){
   if (!ta && tb) return 1;
   return (b.createdAt || 0) - (a.createdAt || 0);
 }
+// 현재 시각 "HH:MM"
+function nowHHMM(){
+  const d = new Date();
+  return String(d.getHours()).padStart(2, "0") + ":" + String(d.getMinutes()).padStart(2, "0");
+}
 // "15:00" → "오후 3:00"
 function fmtTime(t){
   const m = /^(\d{1,2}):(\d{2})$/.exec(t || "");
@@ -3044,7 +3049,7 @@ function openEditor(entry, opts){
   state.editing = entry || null;
   state.draftImages = entry ? [...(entry.images || [])] : [];
   state.draftCategory = entry ? (entry.category || "") : ((opts && opts.category) || "");
-  if ($timeInput) $timeInput.value = entry ? (entry.time || "") : ((opts && opts.time) || "");
+  if ($timeInput) $timeInput.value = entry ? (entry.time || "") : ((opts && opts.time) || nowHHMM());
   state.catManage = false;
   renderCatRow();
   $editorTitle.textContent = entry ? "기록 수정" : "새 기록";
