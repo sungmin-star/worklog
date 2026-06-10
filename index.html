@@ -221,7 +221,11 @@
     -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); padding:6px 10px; border-radius:999px; border:1px solid var(--line); }
   .graph-bar .lg{ display:inline-flex; align-items:center; gap:5px; }
   .graph-bar .dot{ width:9px; height:9px; border-radius:50%; }
-  .graph-reset{ pointer-events:auto; margin-left:auto; border:1px solid var(--line); background:var(--blur-bg);
+  .graph-right{ margin-left:auto; display:flex; align-items:center; gap:8px; pointer-events:none; }
+  .graph-modes{ pointer-events:auto; display:inline-flex; background:var(--blur-bg); -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); border:1px solid var(--line); border-radius:999px; padding:2px; }
+  .graph-modes button{ border:none; background:none; color:var(--muted); font-size:12px; padding:4px 11px; border-radius:999px; cursor:pointer; }
+  .graph-modes button.on{ background:var(--surface-2); color:var(--text); font-weight:600; }
+  .graph-reset{ pointer-events:auto; border:1px solid var(--line); background:var(--blur-bg);
     -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); color:var(--text); border-radius:999px;
     padding:6px 12px; font-size:12.5px; cursor:pointer; }
   .graph-reset:hover{ background:var(--surface-2); }
@@ -3938,24 +3942,42 @@ $dayAllBtn.addEventListener("click", () => {
    외부 라이브러리 없이 캔버스 + 간단한 force 시뮬레이션
    ============================================================ */
 const HUB_DEG = 2;            // 이 이상 연결되면 '허브' → 라벨 항상 표시
-const ENTRY_COL = "#6c9bd1"; // 🔵 기록
+const ENTRY_COL = "#868d99"; // 기록(중립 회색) — 분류색 허브가 또렷이 보이도록
 let graphGen = 0;            // RAF 루프 무효화 토큰
 const graphPos = new Map();  // id → {x,y} (뷰 재진입 시 배치 유지)
 let graphCam = null;         // {scale, panX, panY}
 let graphRT = null;          // 런타임 상태
+// 점을 잇는 기준: "category"(분류) | "link"([[위키링크]])
+let graphMode = (function(){ try { return localStorage.getItem("worklog:graphmode") || "category"; } catch(_){ return "category"; } })();
+function setGraphMode(m){
+  if (m === graphMode || (m !== "category" && m !== "link")) return;
+  graphMode = m;
+  try { localStorage.setItem("worklog:graphmode", m); } catch(_){}
+  graphPos.clear(); graphCam = null;   // 기준이 바뀌면 배치 재계산 + 가운데 정렬
+  renderGraph();
+}
 
 function shortDate(iso){ const p = (iso||"").split("-"); return p.length===3 ? (+p[1])+"/"+(+p[2]) : iso; }
 
-function buildGraphData(){
+function buildGraphData(mode){
   const nodes = [], idx = new Map(), edges = [];
   const ensure = (id, init) => { let n = idx.get(id); if(!n){ n = init(); idx.set(id, n); nodes.push(n); } return n; };
   for (const e of state.entries){
     const eid = "e:" + e.id;
     const en = ensure(eid, () => ({ id:eid, type:"entry", entry:e, label:shortDate(e.date), deg:0 }));
-    for (const L of extractLinks(e.text)){
-      const cid = "c:" + L.toLowerCase();
-      const cn = ensure(cid, () => ({ id:cid, type:"concept", name:L, label:L, deg:0 }));
-      edges.push({ a:en, b:cn }); en.deg++; cn.deg++;
+    if (mode === "category"){
+      const c = (e.category || "").trim();
+      if (c){
+        const cid = "cat:" + c;
+        const cn = ensure(cid, () => ({ id:cid, type:"concept", name:c, label:c, color:catColor(c), deg:0, filter:{ type:"cat", value:c } }));
+        edges.push({ a:en, b:cn }); en.deg++; cn.deg++;
+      }
+    } else {
+      for (const L of extractLinks(e.text)){
+        const cid = "c:" + L.toLowerCase();
+        const cn = ensure(cid, () => ({ id:cid, type:"concept", name:L, label:L, color:null, deg:0, filter:{ type:"link", value:L } }));
+        edges.push({ a:en, b:cn }); en.deg++; cn.deg++;
+      }
     }
   }
   const adj = new Map();
@@ -3976,8 +3998,14 @@ function renderGraph(){
       `<canvas id="graphCanvas"></canvas>` +
       `<div class="graph-bar">` +
         `<span class="legend"><span class="lg"><span class="dot" style="background:${ENTRY_COL}"></span>기록</span>` +
-        `<span class="lg"><span class="dot" id="lgConcept"></span>개념 [[ ]]</span></span>` +
-        `<button class="graph-reset" id="graphReset" type="button">가운데 정렬</button>` +
+        `<span class="lg"><span class="dot" id="lgConcept"></span>${graphMode === "category" ? "분류" : "개념 [[ ]]"}</span></span>` +
+        `<span class="graph-right">` +
+          `<span class="graph-modes" id="graphModes">` +
+            `<button type="button" data-gmode="category" class="${graphMode === "category" ? "on" : ""}">분류</button>` +
+            `<button type="button" data-gmode="link" class="${graphMode === "link" ? "on" : ""}">[[링크]]</button>` +
+          `</span>` +
+          `<button class="graph-reset" id="graphReset" type="button">가운데 정렬</button>` +
+        `</span>` +
       `</div>` +
       `<div class="graph-empty" id="graphEmpty" style="display:none"></div>` +
     `</div>`;
@@ -3991,21 +4019,27 @@ function renderGraph(){
     accent: (cs.getPropertyValue("--accent")||"#cdae6a").trim(),
   };
   const lg = document.getElementById("lgConcept"); if (lg) lg.style.background = COL.accent;
+  const modesEl = document.getElementById("graphModes");
+  if (modesEl) modesEl.addEventListener("click", (e) => {
+    const b = e.target.closest("[data-gmode]"); if (b) setGraphMode(b.dataset.gmode);
+  });
 
   const wrap = document.getElementById("graphWrap");
   const canvas = document.getElementById("graphCanvas");
   const emptyEl = document.getElementById("graphEmpty");
-  const data = buildGraphData();
+  const data = buildGraphData(graphMode);
 
   if (!data.nodes.length){
     emptyEl.style.display = "flex";
-    emptyEl.innerHTML = `<div class="ge-title">아직 기록이 없어요</div><div class="ge-sub">기록을 남기면 여기에 점으로 나타나고, 본문에 <b>[[이름]]</b>을 적으면 서로 이어져요.</div>`;
+    emptyEl.innerHTML = `<div class="ge-title">아직 기록이 없어요</div><div class="ge-sub">기록을 남기면 여기에 점으로 나타나고, 분류를 지정하면 같은 분류끼리 이어져요.</div>`;
     return;
   }
   if (!data.edges.length){
     emptyEl.style.display = "flex";
     emptyEl.style.pointerEvents = "none";
-    emptyEl.innerHTML = `<div class="ge-title">아직 이어진 점이 없어요</div><div class="ge-sub">본문에 <b>[[주제]]</b>처럼 위키링크를 적으면 같은 주제의 기록들이 별자리처럼 연결돼요.</div>`;
+    emptyEl.innerHTML = graphMode === "category"
+      ? `<div class="ge-title">아직 분류된 기록이 없어요</div><div class="ge-sub">기록에 <b>분류</b>(작업·스케줄 등)를 지정하면 같은 분류끼리 별자리처럼 연결돼요.</div>`
+      : `<div class="ge-title">아직 이어진 점이 없어요</div><div class="ge-sub">본문에 <b>[[주제]]</b>처럼 위키링크를 적으면 같은 주제의 기록들이 별자리처럼 연결돼요.</div>`;
   }
 
   const gen = ++graphGen;
@@ -4094,7 +4128,7 @@ function renderGraph(){
       const isNeigh = hover && (n.id===hover || (neigh && neigh.has(n.id)));
       ctx.globalAlpha = hover ? (isNeigh ? 1 : 0.25) : 1;
       ctx.beginPath(); ctx.arc(sp.x, sp.y, r, 0, 6.2832);
-      ctx.fillStyle = n.type==="concept" ? COL.accent : ENTRY_COL;
+      ctx.fillStyle = n.type==="concept" ? (n.color || COL.accent) : ENTRY_COL;
       ctx.fill();
       if (n.id===hover){ ctx.lineWidth = 2; ctx.strokeStyle = COL.text; ctx.globalAlpha = 0.9; ctx.stroke(); }
     }
@@ -4143,7 +4177,9 @@ function renderGraph(){
   }
   function nodeAction(n){
     if (n.type === "entry"){ openEditor(n.entry); return; }
-    state.view = "timeline"; clearFilters(); state.linkFilter = n.name;
+    state.view = "timeline"; clearFilters();
+    if (n.filter && n.filter.type === "cat") state.catFilter = n.filter.value;
+    else state.linkFilter = n.name;
     render(); window.scrollTo({ top: 0 });
   }
 
