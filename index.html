@@ -1311,6 +1311,20 @@
     </div>
   </div>
 
+  <!-- Day Entries Modal (캘린더 날짜 → 그날 기록 목록) -->
+  <div class="scrim" id="dayScrim" aria-hidden="true">
+    <div class="modal" role="dialog" aria-modal="true" aria-labelledby="dayTitle" style="max-width:460px">
+      <h2 id="dayTitle">기록</h2>
+      <div id="dayBody"></div>
+      <div class="modal-actions">
+        <div class="right" style="margin-left:auto">
+          <button class="btn ghost" id="dayAllBtn">타임라인에서 보기</button>
+          <button class="btn" id="dayClose">닫기</button>
+        </div>
+      </div>
+    </div>
+  </div>
+
   <!-- Jarvis (자동응답 비서) -->
   <button class="to-top" id="toTopBtn" aria-label="맨 위로" title="맨 위로">
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
@@ -3291,11 +3305,10 @@ $entries.addEventListener("click", (e) => {
     renderCalendar();
     return;
   }
-  // 0b) 캘린더 날짜 클릭 → 그 날 기록 보기
+  // 0b) 캘린더 날짜 클릭 → 그 날 기록 목록 먼저 보여주기
   const calDay = e.target.closest("[data-calday]");
   if (calDay){
-    state.view = "timeline"; clearFilters(); state.dayFilter = calDay.dataset.calday;
-    render(); window.scrollTo({ top: 0 });
+    openDayList(calDay.dataset.calday);
     return;
   }
   // 0) 사진 갤러리 셀 → 라이트박스
@@ -3607,6 +3620,7 @@ document.addEventListener("keydown", (e) => {
     if ($projectsScrim.dataset.open === "true") { closeProjects(); return; }
     if ($confirmScrim.dataset.open === "true") { closeConfirm(); return; }
     if ($summaryScrim.dataset.open === "true") { closeSummary(); return; }
+    if ($dayScrim.dataset.open === "true") { closeDayList(); return; }
     if ($editorScrim.dataset.open === "true") { closeEditor(); return; }
     if ($menu.dataset.open === "true") { setMenu(false); return; }
     if ($sidebar.dataset.open === "true") { closeSidebar(); return; }
@@ -3676,6 +3690,57 @@ function closeSummary(){
     document.body.classList.remove("modal-open");
   }
 }
+
+/* ============================================================
+   캘린더 날짜 → 그날 기록 목록 (선택하면 해당 기록 열기)
+   ============================================================ */
+const $dayScrim = document.getElementById("dayScrim");
+const $dayBody = document.getElementById("dayBody");
+const $dayTitle = document.getElementById("dayTitle");
+const $dayClose = document.getElementById("dayClose");
+const $dayAllBtn = document.getElementById("dayAllBtn");
+let dayListIso = null;
+
+function openDayList(iso){
+  const list = state.entries.filter(e => e.date === iso).slice().sort(sortEntries);
+  if (!list.length) return;
+  // 기록이 1건뿐이면 목록 없이 바로 열기
+  if (list.length === 1){ openEditor(list[0]); return; }
+  dayListIso = iso;
+  let dateLabel = iso;
+  try { dateLabel = formatDateLine(iso).full.split(" · ")[0]; } catch(_){}
+  $dayTitle.innerHTML = `📅 ${escapeHtml(dateLabel)} · 기록 ${list.length}개`;
+  $dayBody.innerHTML = `<div class="jv-rows">` + list.map((e, i) => {
+    const snip = (e.text || "").replace(/\s+/g, " ").trim().slice(0, 56) || "(사진만)";
+    const ph = (e.images && e.images.length) ? ` 📷${e.images.length}` : "";
+    const pin = e.pinnedAt ? "★ " : "";
+    return `<button class="jv-row" type="button" data-dayopen="${escapeHtml(e.id)}">` +
+      `<b>${pin}기록 ${i + 1}${ph}</b><span>${escapeHtml(snip)}</span></button>`;
+  }).join("") + `</div>`;
+  $dayScrim.dataset.open = "true";
+  $dayScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeDayList(){
+  $dayScrim.dataset.open = "false";
+  $dayScrim.setAttribute("aria-hidden", "true");
+  if ($editorScrim.dataset.open !== "true") document.body.classList.remove("modal-open");
+}
+$dayClose.addEventListener("click", closeDayList);
+$dayScrim.addEventListener("click", (e) => { if (e.target === $dayScrim) closeDayList(); });
+$dayBody.addEventListener("click", (e) => {
+  const row = e.target.closest("[data-dayopen]");
+  if (!row) return;
+  const entry = state.entries.find(x => x.id === row.dataset.dayopen);
+  closeDayList();
+  if (entry) openEditor(entry);
+});
+$dayAllBtn.addEventListener("click", () => {
+  const iso = dayListIso;
+  closeDayList();
+  state.view = "timeline"; clearFilters(); state.dayFilter = iso;
+  render(); window.scrollTo({ top: 0 });
+});
 
 function buildSummaryPrompt(entries){
   const body = entries
