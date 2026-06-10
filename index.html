@@ -201,11 +201,16 @@
   .cal-dow{ text-align:center; font-size:12px; color:var(--muted); padding:4px 0 8px; font-weight:600; }
   .cal-dow.sun{ color:var(--danger); }
   .cal-dow.sat{ color:var(--accent); }
-  .cal-cell{ aspect-ratio:1; border:none; background:transparent; border-radius:10px; position:relative; display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--text); }
+  .cal-cell{ height:54px; border:none; background:transparent; border-radius:10px; position:relative; display:flex; align-items:center; justify-content:center; font-size:14px; color:var(--text); }
   .cal-cell.empty{ visibility:hidden; }
   .cal-cell[disabled]{ color:var(--muted); opacity:.45; cursor:default; }
-  .cal-cell.has{ background:var(--surface-2); cursor:pointer; font-weight:700; }
+  .cal-cell{ cursor:pointer; }
+  .cal-cell:hover{ background:var(--surface); }
+  .cal-cell.has{ background:var(--surface-2); font-weight:700; }
   .cal-cell.has:hover{ background:var(--line); }
+  .cal-dots{ position:absolute; bottom:6px; left:50%; transform:translateX(-50%); display:flex; gap:3px; }
+  .cal-cdot{ width:7px; height:7px; border-radius:50%; }
+  .cal-hint{ opacity:.8; }
   .cal-cell.today{ box-shadow:inset 0 0 0 2px var(--accent); }
   .cal-dot{ position:absolute; bottom:5px; left:50%; transform:translateX(-50%); min-width:13px; height:13px; padding:0 3px; border-radius:7px; background:var(--accent); color:var(--accent-text); font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; }
   .cal-foot{ margin-top:18px; text-align:center; color:var(--muted); font-size:13px; }
@@ -1367,6 +1372,7 @@
       <h2 id="dayTitle">기록</h2>
       <div id="dayBody"></div>
       <div class="modal-actions">
+        <button class="btn" id="dayAddBtn">＋ 이 날 추가</button>
         <div class="right" style="margin-left:auto">
           <button class="btn ghost" id="dayAllBtn">타임라인에서 보기</button>
           <button class="btn" id="dayClose">닫기</button>
@@ -2617,8 +2623,8 @@ function renderCalendar(){
   const [y, mo] = ym.split("-").map(Number);
   const startDow = new Date(y, mo - 1, 1).getDay();   // 0=일
   const daysInMonth = new Date(y, mo, 0).getDate();
-  const counts = new Map();
-  for (const e of state.entries) if (e.date.startsWith(ym)) counts.set(e.date, (counts.get(e.date) || 0) + 1);
+  const byDay = new Map();
+  for (const e of state.entries) if (e.date.startsWith(ym)){ if (!byDay.has(e.date)) byDay.set(e.date, []); byDay.get(e.date).push(e); }
   const today = todayISO();
   const wd = ["일", "월", "화", "수", "목", "금", "토"];
   let html =
@@ -2629,16 +2635,24 @@ function renderCalendar(){
     `</div>` +
     `<div class="cal-grid">` +
     wd.map((d, i) => `<div class="cal-dow ${i === 0 ? "sun" : ""} ${i === 6 ? "sat" : ""}">${d}</div>`).join("");
-  for (let i = 0; i < startDow; i++) html += `<div class="cal-cell empty"></div>`;
+  // 빈 칸 없이 1일을 시작 요일 칸에 배치(grid-column) → 첫 줄이 늘어나는 문제 방지
   for (let d = 1; d <= daysInMonth; d++){
     const iso = `${ym}-${String(d).padStart(2, "0")}`;
-    const c = counts.get(iso) || 0;
-    html += `<button class="cal-cell ${c ? "has" : ""} ${iso === today ? "today" : ""}" type="button" ${c ? `data-calday="${iso}"` : "disabled"}>` +
-      `<span class="cal-d">${d}</span>${c ? `<span class="cal-dot">${c > 1 ? c : ""}</span>` : ""}</button>`;
+    const list = byDay.get(iso) || [];
+    // 그날 기록들의 분류 색을 모아 작은 점으로 표시(분류 없으면 중립색)
+    let dots = "";
+    if (list.length){
+      const seen = new Set(), colors = [];
+      for (const e of list){ const col = e.category ? catColor(e.category) : "var(--muted)"; if (!seen.has(col)){ seen.add(col); colors.push(col); } }
+      dots = `<span class="cal-dots">` + colors.slice(0, 4).map(c => `<span class="cal-cdot" style="background:${c}"></span>`).join("") + `</span>`;
+    }
+    const colStyle = d === 1 ? ` style="grid-column:${startDow + 1}"` : "";
+    html += `<button class="cal-cell ${list.length ? "has" : ""} ${iso === today ? "today" : ""}" type="button" data-calday="${iso}"${colStyle}>` +
+      `<span class="cal-d">${d}</span>${dots}</button>`;
   }
   html += `</div>`;
-  const monthN = [...counts.values()].reduce((a, b) => a + b, 0);
-  html += `<div class="cal-foot">${escapeHtml(formatMonth(ym))} · 기록 <b>${monthN}</b>건 · <b>${counts.size}</b>일</div>`;
+  let monthN = 0; for (const l of byDay.values()) monthN += l.length;
+  html += `<div class="cal-foot">${escapeHtml(formatMonth(ym))} · 기록 <b>${monthN}</b>건 · <b>${byDay.size}</b>일 · <span class="cal-hint">빈 날짜를 누르면 일정을 추가해요</span></div>`;
   $entries.innerHTML = html;
 }
 
@@ -2996,11 +3010,11 @@ const $deleteBtn = document.getElementById("deleteBtn");
 function openEditor(entry, opts){
   state.editing = entry || null;
   state.draftImages = entry ? [...(entry.images || [])] : [];
-  state.draftCategory = entry ? (entry.category || "") : "";
+  state.draftCategory = entry ? (entry.category || "") : ((opts && opts.category) || "");
   state.catManage = false;
   renderCatRow();
   $editorTitle.textContent = entry ? "기록 수정" : "새 기록";
-  const iso = entry ? entry.date : todayISO();
+  const iso = entry ? entry.date : ((opts && opts.date) || todayISO());
   $dateText.value = iso;
   $datePick.value = iso;
   $textInput.value = entry ? (entry.text || "") : ((opts && opts.prefill) || "");
@@ -3898,7 +3912,8 @@ let dayListIso = null;
 
 function openDayList(iso){
   const list = state.entries.filter(e => e.date === iso).slice().sort(sortEntries);
-  if (!list.length) return;
+  // 빈 날짜 → 그날 일정/기록 바로 작성(스케줄 분류 기본)
+  if (!list.length){ openEditor(null, { date: iso, category: "스케줄" }); return; }
   // 기록이 1건뿐이면 목록 없이 바로 열기
   if (list.length === 1){ openEditor(list[0]); return; }
   dayListIso = iso;
@@ -3935,6 +3950,11 @@ $dayAllBtn.addEventListener("click", () => {
   closeDayList();
   state.view = "timeline"; clearFilters(); state.dayFilter = iso;
   render(); window.scrollTo({ top: 0 });
+});
+document.getElementById("dayAddBtn").addEventListener("click", () => {
+  const iso = dayListIso;
+  closeDayList();
+  openEditor(null, { date: iso, category: "스케줄" });
 });
 
 /* ============================================================
