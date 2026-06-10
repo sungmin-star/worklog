@@ -254,6 +254,9 @@
     right:0; top:50%;
     transform:translateY(-50%);
     display:flex; align-items:center; gap:8px;
+    /* transform이 독립 쌓임 맥락을 만들어 내부 .menu(z-index:120)가 갇힘 →
+       양수 z-index로 헤더 액션 전체를 본문/컨트롤(메뉴 열림 시 opacity<1 레이어) 위로 올림 */
+    z-index:130;
   }
   .menu-wrap{ position:relative; }
   .icon-btn{
