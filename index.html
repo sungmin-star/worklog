@@ -187,6 +187,7 @@
   .photo-cell:hover img{ transform:scale(1.05); }
   body.view-photos .controls, body.view-photos .months, body.view-photos .tagbar{ display:none; }
   body.view-calendar .controls, body.view-calendar .months, body.view-calendar .tagbar{ display:none; }
+  body.view-graph .controls, body.view-graph .months, body.view-graph .tagbar{ display:none; }
 
   /* 사이드바 하단 구역(사진·프로젝트·휴지통) 구분선 */
   .sb-bottom{ border-top:1px solid var(--line); padding-top:14px; margin-top:6px; }
@@ -208,6 +209,26 @@
   .cal-cell.today{ box-shadow:inset 0 0 0 2px var(--accent); }
   .cal-dot{ position:absolute; bottom:5px; left:50%; transform:translateX(-50%); min-width:13px; height:13px; padding:0 3px; border-radius:7px; background:var(--accent); color:var(--accent-text); font-size:9px; font-weight:700; display:flex; align-items:center; justify-content:center; }
   .cal-foot{ margin-top:18px; text-align:center; color:var(--muted); font-size:13px; }
+
+  /* ---------- 그래프 뷰 (위키링크 맵) ---------- */
+  .graph-wrap{ position:relative; width:100%; height:calc(100vh - 230px); min-height:380px;
+    border:1px solid var(--line); border-radius:14px; overflow:hidden; background:var(--bg);
+    touch-action:none; user-select:none; -webkit-user-select:none; }
+  .graph-wrap canvas{ display:block; width:100%; height:100%; }
+  .graph-bar{ position:absolute; left:12px; top:12px; right:12px; display:flex; align-items:center; gap:8px;
+    pointer-events:none; font-size:12.5px; color:var(--muted); }
+  .graph-bar .legend{ display:flex; align-items:center; gap:12px; background:var(--blur-bg);
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); padding:6px 10px; border-radius:999px; border:1px solid var(--line); }
+  .graph-bar .lg{ display:inline-flex; align-items:center; gap:5px; }
+  .graph-bar .dot{ width:9px; height:9px; border-radius:50%; }
+  .graph-reset{ pointer-events:auto; margin-left:auto; border:1px solid var(--line); background:var(--blur-bg);
+    -webkit-backdrop-filter:blur(6px); backdrop-filter:blur(6px); color:var(--text); border-radius:999px;
+    padding:6px 12px; font-size:12.5px; cursor:pointer; }
+  .graph-reset:hover{ background:var(--surface-2); }
+  .graph-empty{ position:absolute; inset:0; display:flex; flex-direction:column; align-items:center; justify-content:center;
+    gap:8px; text-align:center; color:var(--muted); padding:24px; }
+  .graph-empty .ge-title{ color:var(--text); font-size:15px; font-weight:600; }
+  .graph-empty .ge-sub{ font-size:13px; line-height:1.6; max-width:280px; }
 
   /* ---------- 즐겨찾기 핀 + 글자수 ---------- */
   .entry-pin{
@@ -2415,8 +2436,10 @@ function render(){
   renderStats();
   document.body.classList.toggle("view-photos", state.view === "photos");
   document.body.classList.toggle("view-calendar", state.view === "calendar");
+  document.body.classList.toggle("view-graph", state.view === "graph");
   if (state.view === "photos"){ renderPhotos(); }
   else if (state.view === "calendar"){ renderCalendar(); }
+  else if (state.view === "graph"){ renderGraph(); }
   else { renderMonths(); renderTags(); renderEntries(); }
 }
 
@@ -2439,6 +2462,7 @@ function renderSidebar(){
       `<button class="sb-item ${isAll ? "active" : ""}" data-nav="all">📋 전체 기록 <span class="sb-c">${state.entries.length}</span></button>` +
       `<button class="sb-item ${onTimeline && state.favFilter ? "active" : ""}" data-nav="fav">⭐ 즐겨찾기 <span class="sb-c">${favN}</span></button>` +
       `<button class="sb-item ${state.view === "calendar" ? "active" : ""}" data-nav="calendar">📅 캘린더</button>` +
+      `<button class="sb-item ${state.view === "graph" ? "active" : ""}" data-nav="graph">🕸 그래프</button>` +
     `</div>` +
     `<div class="sb-section"><div class="sb-title">월별</div>` +
       (months.length ? months.map(ym =>
@@ -2474,6 +2498,7 @@ $sidebar.addEventListener("click", (e) => {
     if (k === "all"){ state.view = "timeline"; clearFilters(); render(); window.scrollTo({ top: 0 }); }
     else if (k === "fav"){ state.view = "timeline"; clearFilters(); state.favFilter = true; render(); window.scrollTo({ top: 0 }); }
     else if (k === "calendar"){ state.view = "calendar"; render(); window.scrollTo({ top: 0 }); }
+    else if (k === "graph"){ state.view = "graph"; render(); window.scrollTo({ top: 0 }); }
     else if (k === "photos"){ state.view = "photos"; render(); window.scrollTo({ top: 0 }); }
     else if (k === "projects"){ openProjects(); }
     else if (k === "trash"){ openTrash(); }
@@ -3741,6 +3766,294 @@ $dayAllBtn.addEventListener("click", () => {
   state.view = "timeline"; clearFilters(); state.dayFilter = iso;
   render(); window.scrollTo({ top: 0 });
 });
+
+/* ============================================================
+   그래프 뷰 — [[위키링크]]로 기록·개념을 잇는 별자리 맵
+   외부 라이브러리 없이 캔버스 + 간단한 force 시뮬레이션
+   ============================================================ */
+const HUB_DEG = 2;            // 이 이상 연결되면 '허브' → 라벨 항상 표시
+const ENTRY_COL = "#6c9bd1"; // 🔵 기록
+let graphGen = 0;            // RAF 루프 무효화 토큰
+const graphPos = new Map();  // id → {x,y} (뷰 재진입 시 배치 유지)
+let graphCam = null;         // {scale, panX, panY}
+let graphRT = null;          // 런타임 상태
+
+function shortDate(iso){ const p = (iso||"").split("-"); return p.length===3 ? (+p[1])+"/"+(+p[2]) : iso; }
+
+function buildGraphData(){
+  const nodes = [], idx = new Map(), edges = [];
+  const ensure = (id, init) => { let n = idx.get(id); if(!n){ n = init(); idx.set(id, n); nodes.push(n); } return n; };
+  for (const e of state.entries){
+    const eid = "e:" + e.id;
+    const en = ensure(eid, () => ({ id:eid, type:"entry", entry:e, label:shortDate(e.date), deg:0 }));
+    for (const L of extractLinks(e.text)){
+      const cid = "c:" + L.toLowerCase();
+      const cn = ensure(cid, () => ({ id:cid, type:"concept", name:L, label:L, deg:0 }));
+      edges.push({ a:en, b:cn }); en.deg++; cn.deg++;
+    }
+  }
+  const adj = new Map();
+  for (const n of nodes) adj.set(n.id, new Set());
+  for (const ed of edges){ adj.get(ed.a.id).add(ed.b.id); adj.get(ed.b.id).add(ed.a.id); }
+  for (const n of nodes){
+    const p = graphPos.get(n.id);
+    if (p){ n.x = p.x; n.y = p.y; }
+    else { const a = Math.random()*6.2832, r = 30 + Math.random()*170; n.x = Math.cos(a)*r; n.y = Math.sin(a)*r; }
+    n.vx = 0; n.vy = 0;
+  }
+  return { nodes, edges, adj };
+}
+
+function renderGraph(){
+  $entries.innerHTML =
+    `<div class="graph-wrap" id="graphWrap">` +
+      `<canvas id="graphCanvas"></canvas>` +
+      `<div class="graph-bar">` +
+        `<span class="legend"><span class="lg"><span class="dot" style="background:${ENTRY_COL}"></span>기록</span>` +
+        `<span class="lg"><span class="dot" id="lgConcept"></span>개념 [[ ]]</span></span>` +
+        `<button class="graph-reset" id="graphReset" type="button">가운데 정렬</button>` +
+      `</div>` +
+      `<div class="graph-empty" id="graphEmpty" style="display:none"></div>` +
+    `</div>`;
+
+  const cs = getComputedStyle(document.body);
+  const COL = {
+    bg: (cs.getPropertyValue("--bg")||"#1d1d1f").trim(),
+    line: (cs.getPropertyValue("--line")||"#3a3a3d").trim(),
+    text: (cs.getPropertyValue("--text")||"#ececec").trim(),
+    muted: (cs.getPropertyValue("--muted")||"#9a9a9e").trim(),
+    accent: (cs.getPropertyValue("--accent")||"#cdae6a").trim(),
+  };
+  const lg = document.getElementById("lgConcept"); if (lg) lg.style.background = COL.accent;
+
+  const wrap = document.getElementById("graphWrap");
+  const canvas = document.getElementById("graphCanvas");
+  const emptyEl = document.getElementById("graphEmpty");
+  const data = buildGraphData();
+
+  if (!data.nodes.length){
+    emptyEl.style.display = "flex";
+    emptyEl.innerHTML = `<div class="ge-title">아직 기록이 없어요</div><div class="ge-sub">기록을 남기면 여기에 점으로 나타나고, 본문에 <b>[[이름]]</b>을 적으면 서로 이어져요.</div>`;
+    return;
+  }
+  if (!data.edges.length){
+    emptyEl.style.display = "flex";
+    emptyEl.style.pointerEvents = "none";
+    emptyEl.innerHTML = `<div class="ge-title">아직 이어진 점이 없어요</div><div class="ge-sub">본문에 <b>[[주제]]</b>처럼 위키링크를 적으면 같은 주제의 기록들이 별자리처럼 연결돼요.</div>`;
+  }
+
+  const gen = ++graphGen;
+  const dpr = Math.min(window.devicePixelRatio || 1, 2);
+  const ctx = canvas.getContext("2d");
+  const rt = graphRT = {
+    canvas, ctx, dpr, COL, nodes:data.nodes, edges:data.edges, adj:data.adj,
+    alpha: 0.9, running:false, dragNode:null, dragMoved:false, panning:false,
+    interacting:false, hoverId:null, pointers:new Map(), pinchDist:0, lastPan:null, cssW:0, cssH:0,
+  };
+  const freshCam = !graphCam;
+  if (!graphCam) graphCam = { scale:1, panX:0, panY:0 };
+  rt.cam = graphCam;
+
+  function resize(){
+    const r = wrap.getBoundingClientRect();
+    rt.cssW = r.width; rt.cssH = r.height;
+    canvas.width = Math.round(r.width * dpr);
+    canvas.height = Math.round(r.height * dpr);
+    ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
+  }
+  resize();
+  if (freshCam) fitView();
+
+  function fitView(){
+    const ns = rt.nodes; if (!ns.length) return;
+    let minx=Infinity,miny=Infinity,maxx=-Infinity,maxy=-Infinity;
+    for (const n of ns){ if(n.x<minx)minx=n.x; if(n.y<miny)miny=n.y; if(n.x>maxx)maxx=n.x; if(n.y>maxy)maxy=n.y; }
+    const bw = (maxx-minx)||1, bh = (maxy-miny)||1, pad = 70;
+    const s = Math.max(0.2, Math.min((rt.cssW-pad*2)/bw, (rt.cssH-pad*2)/bh, 1.6));
+    rt.cam.scale = s;
+    rt.cam.panX = rt.cssW/2 - ((minx+maxx)/2)*s;
+    rt.cam.panY = rt.cssH/2 - ((miny+maxy)/2)*s;
+  }
+  rt.fitView = fitView;
+
+  const S = (n) => ({ x: n.x*rt.cam.scale + rt.cam.panX, y: n.y*rt.cam.scale + rt.cam.panY });
+  const toWorld = (sx, sy) => ({ x:(sx-rt.cam.panX)/rt.cam.scale, y:(sy-rt.cam.panY)/rt.cam.scale });
+  const radius = (n) => (n.type==="concept" ? 6 + Math.min(n.deg,10)*1.1 : 5 + Math.min(n.deg,6)*0.8);
+
+  function simulate(a){
+    const ns = rt.nodes, es = rt.edges;
+    const REP = 2600, LEN = 82, SPR = 0.02, GRAV = 0.012, DAMP = 0.85;
+    for (let i=0;i<ns.length;i++){
+      const p = ns[i];
+      for (let j=i+1;j<ns.length;j++){
+        const q = ns[j];
+        let dx = p.x-q.x, dy = p.y-q.y, d2 = dx*dx+dy*dy;
+        if (d2 < 0.01){ dx = (Math.random()-0.5); dy = (Math.random()-0.5); d2 = dx*dx+dy*dy; }
+        const d = Math.sqrt(d2), f = REP / d2;
+        const fx = (dx/d)*f, fy = (dy/d)*f;
+        p.vx += fx; p.vy += fy; q.vx -= fx; q.vy -= fy;
+      }
+    }
+    for (const ed of es){
+      const a1 = ed.a, b1 = ed.b;
+      let dx = b1.x-a1.x, dy = b1.y-a1.y, d = Math.hypot(dx,dy)||0.01;
+      const f = (d-LEN)*SPR, fx = (dx/d)*f, fy = (dy/d)*f;
+      a1.vx += fx; a1.vy += fy; b1.vx -= fx; b1.vy -= fy;
+    }
+    for (const p of ns){
+      p.vx -= p.x*GRAV; p.vy -= p.y*GRAV;
+      if (p.fixed) continue;
+      p.vx *= DAMP; p.vy *= DAMP;
+      p.x += p.vx*a; p.y += p.vy*a;
+    }
+    for (const p of ns) graphPos.set(p.id, { x:p.x, y:p.y });
+  }
+
+  function draw(){
+    ctx.clearRect(0,0,rt.cssW,rt.cssH);
+    const hover = rt.hoverId, neigh = hover ? rt.adj.get(hover) : null;
+    // edges
+    for (const ed of rt.edges){
+      const incident = hover && (ed.a.id===hover || ed.b.id===hover);
+      ctx.strokeStyle = COL.line;
+      ctx.globalAlpha = hover ? (incident ? 0.95 : 0.12) : 0.5;
+      ctx.lineWidth = Math.max(0.6, Math.min(2, rt.cam.scale)) * (incident?1.6:1);
+      const pa = S(ed.a), pb = S(ed.b);
+      ctx.beginPath(); ctx.moveTo(pa.x,pa.y); ctx.lineTo(pb.x,pb.y); ctx.stroke();
+    }
+    ctx.globalAlpha = 1;
+    // nodes
+    for (const n of rt.nodes){
+      const sp = S(n), r = Math.max(2.5, Math.min(42, radius(n)*rt.cam.scale));
+      const isNeigh = hover && (n.id===hover || (neigh && neigh.has(n.id)));
+      ctx.globalAlpha = hover ? (isNeigh ? 1 : 0.25) : 1;
+      ctx.beginPath(); ctx.arc(sp.x, sp.y, r, 0, 6.2832);
+      ctx.fillStyle = n.type==="concept" ? COL.accent : ENTRY_COL;
+      ctx.fill();
+      if (n.id===hover){ ctx.lineWidth = 2; ctx.strokeStyle = COL.text; ctx.globalAlpha = 0.9; ctx.stroke(); }
+    }
+    ctx.globalAlpha = 1;
+    // labels: 허브 항상 + 호버한 점/이웃
+    ctx.font = "600 11.5px " + (cs.getPropertyValue("--sans")||"system-ui");
+    ctx.textAlign = "center"; ctx.textBaseline = "top";
+    for (const n of rt.nodes){
+      const isHub = n.deg >= HUB_DEG;
+      const isNeigh = hover && (n.id===hover || (neigh && neigh.has(n.id)));
+      if (!isHub && !isNeigh) continue;
+      if (hover && !isNeigh && !(isHub)) continue;
+      const sp = S(n), r = Math.max(2.5, Math.min(42, radius(n)*rt.cam.scale));
+      const txt = (n.label||"").slice(0, 18);
+      ctx.globalAlpha = hover ? (isNeigh ? 1 : 0.35) : 0.92;
+      ctx.fillStyle = COL.text;
+      ctx.fillText(txt, sp.x, sp.y + r + 3);
+    }
+    ctx.globalAlpha = 1;
+  }
+  rt.draw = draw;
+
+  function startLoop(){
+    if (rt.running) return; rt.running = true;
+    const myGen = gen;
+    const frame = () => {
+      if (myGen !== graphGen || state.view !== "graph"){ rt.running = false; return; }
+      if (rt.alpha > 0.02){ simulate(rt.alpha); rt.alpha *= 0.985; if (rt.alpha < 0.02) rt.alpha = 0; }
+      draw();
+      if (rt.alpha > 0.02 || rt.dragNode || rt.interacting){ requestAnimationFrame(frame); }
+      else { rt.running = false; }
+    };
+    requestAnimationFrame(frame);
+  }
+  rt.startLoop = startLoop;
+  const reheat = (v) => { rt.alpha = Math.max(rt.alpha, v||0.5); startLoop(); };
+
+  function hitTest(sx, sy){
+    let best = null, bestD = 18*18;
+    for (const n of rt.nodes){
+      const sp = S(n), r = Math.max(2.5, radius(n)*rt.cam.scale);
+      const dx = sx-sp.x, dy = sy-sp.y, d2 = dx*dx+dy*dy, hitR = (r+8)*(r+8);
+      if (d2 <= Math.max(bestD, hitR) && d2 <= hitR){ best = n; bestD = d2; }
+    }
+    return best;
+  }
+  function nodeAction(n){
+    if (n.type === "entry"){ openEditor(n.entry); return; }
+    state.view = "timeline"; clearFilters(); state.linkFilter = n.name;
+    render(); window.scrollTo({ top: 0 });
+  }
+
+  const relPos = (e) => { const r = canvas.getBoundingClientRect(); return { x:e.clientX-r.left, y:e.clientY-r.top }; };
+
+  canvas.addEventListener("pointerdown", (e) => {
+    canvas.setPointerCapture(e.pointerId);
+    const p = relPos(e); rt.pointers.set(e.pointerId, p);
+    if (rt.pointers.size === 2){
+      const pts = [...rt.pointers.values()];
+      rt.pinchDist = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+      rt.dragNode = null; rt.panning = false; rt.interacting = true; return;
+    }
+    const hit = hitTest(p.x, p.y);
+    if (hit){ rt.dragNode = hit; rt.dragMoved = false; hit.fixed = true; reheat(0.3); }
+    else { rt.panning = true; rt.lastPan = p; rt.dragMoved = false; rt.interacting = true; startLoop(); }
+  });
+  canvas.addEventListener("pointermove", (e) => {
+    const p = relPos(e);
+    if (rt.pointers.has(e.pointerId)) rt.pointers.set(e.pointerId, p);
+    if (rt.pointers.size === 2){
+      const pts = [...rt.pointers.values()];
+      const d = Math.hypot(pts[0].x-pts[1].x, pts[0].y-pts[1].y);
+      const mid = { x:(pts[0].x+pts[1].x)/2, y:(pts[0].y+pts[1].y)/2 };
+      if (rt.pinchDist > 0){ zoomAt(mid.x, mid.y, d/rt.pinchDist); }
+      rt.pinchDist = d; rt.interacting = true; startLoop(); return;
+    }
+    if (rt.dragNode){
+      const w = toWorld(p.x, p.y); rt.dragNode.x = w.x; rt.dragNode.y = w.y;
+      rt.dragNode.vx = 0; rt.dragNode.vy = 0; rt.dragMoved = true; reheat(0.35); return;
+    }
+    if (rt.panning && rt.lastPan){
+      rt.cam.panX += p.x-rt.lastPan.x; rt.cam.panY += p.y-rt.lastPan.y; rt.lastPan = p;
+      rt.dragMoved = true; startLoop(); return;
+    }
+    // hover
+    const hit = hitTest(p.x, p.y);
+    const id = hit ? hit.id : null;
+    canvas.style.cursor = hit ? "pointer" : "default";
+    if (id !== rt.hoverId){ rt.hoverId = id; startLoop(); }
+  });
+  function endPointer(e){
+    const wasDrag = rt.dragNode, wasPan = rt.panning, moved = rt.dragMoved;
+    if (rt.pointers.has(e.pointerId)) rt.pointers.delete(e.pointerId);
+    if (rt.pointers.size < 2) rt.pinchDist = 0;
+    if (wasDrag){ wasDrag.fixed = false; if (!moved) nodeAction(wasDrag); rt.dragNode = null; reheat(0.2); }
+    rt.panning = false; rt.lastPan = null;
+    if (rt.pointers.size === 0) rt.interacting = false;
+  }
+  canvas.addEventListener("pointerup", endPointer);
+  canvas.addEventListener("pointercancel", endPointer);
+  canvas.addEventListener("pointerleave", (e) => {
+    if (!rt.dragNode && !rt.panning && rt.pointers.size===0 && rt.hoverId){ rt.hoverId = null; canvas.style.cursor="default"; startLoop(); }
+  });
+  function zoomAt(sx, sy, factor){
+    const ns = Math.max(0.15, Math.min(4, rt.cam.scale*factor));
+    const w = toWorld(sx, sy);
+    rt.cam.scale = ns;
+    rt.cam.panX = sx - w.x*ns; rt.cam.panY = sy - w.y*ns;
+  }
+  canvas.addEventListener("wheel", (e) => {
+    e.preventDefault();
+    const p = relPos(e);
+    zoomAt(p.x, p.y, e.deltaY < 0 ? 1.1 : 0.9);
+    startLoop();
+  }, { passive:false });
+
+  document.getElementById("graphReset").addEventListener("click", () => { fitView(); reheat(0.6); });
+
+  // 뷰 크기 변동 대응
+  if (rt._ro) rt._ro.disconnect();
+  rt._ro = new ResizeObserver(() => { if (state.view==="graph" && graphGen===gen){ resize(); startLoop(); } });
+  rt._ro.observe(wrap);
+
+  startLoop();
+}
 
 function buildSummaryPrompt(entries){
   const body = entries
