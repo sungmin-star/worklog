@@ -253,6 +253,11 @@
   .entry.is-pinned{ box-shadow:inset 3px 0 0 var(--accent); }
   .entry-chars{ margin-left:9px; font-size:11.5px; color:var(--muted); opacity:.85; }
   .char-counter{ margin-top:6px; text-align:right; font-size:12px; color:var(--muted); }
+  .mic-btn{ margin-left:8px; font-size:12px; font-weight:600; color:var(--accent); background:var(--surface-2); border:1px solid var(--line); border-radius:999px; cursor:pointer; padding:3px 11px; vertical-align:middle; transition:background .15s, color .15s, border-color .15s; }
+  .mic-btn:hover{ background:var(--surface); }
+  .mic-btn:active{ transform:scale(0.96); }
+  .mic-btn.recording{ color:#fff; background:#e5484d; border-color:#e5484d; animation:micPulse 1.2s ease-in-out infinite; }
+  @keyframes micPulse{ 0%,100%{ box-shadow:0 0 0 0 rgba(229,72,77,.5); } 50%{ box-shadow:0 0 0 7px rgba(229,72,77,0); } }
 
   /* ---------- Header ---------- */
   header.top{
@@ -1346,7 +1351,7 @@
         </div>
       </div>
       <div class="field">
-        <label for="textInput">본문</label>
+        <label for="textInput">본문 <button type="button" class="mic-btn" id="micBtn" aria-label="음성으로 입력" title="음성 입력" hidden>🎤 <span class="mic-label">음성</span></button></label>
         <textarea id="textInput" placeholder="오늘은 무엇을 하셨나요?"></textarea>
         <div class="char-counter" id="charCounter">0자</div>
       </div>
@@ -3078,6 +3083,7 @@ function openEditor(entry, opts){
   setTimeout(() => $textInput.focus(), 50);
 }
 function closeEditor(){
+  if (typeof stopMic === "function") stopMic();
   $editorScrim.dataset.open = "false";
   $editorScrim.setAttribute("aria-hidden", "true");
   document.body.classList.remove("modal-open");
@@ -3161,6 +3167,57 @@ function updateCharCounter(){
   $charCounter.textContent = `${fmtNum(noSpace)}자 (공백포함 ${fmtNum(total)})`;
 }
 $textInput.addEventListener("input", updateCharCounter);
+
+/* ── 음성 입력(Web Speech API) ───────────────────────────────
+   본문에 말로 받아쓰기. 미지원 브라우저(예: 데스크톱 Firefox)는 버튼 숨김. */
+const $micBtn = document.getElementById("micBtn");
+let micRecog = null, micRecording = false, micBase = "", micFinal = "";
+function initMic(){
+  const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
+  if (!SR || !$micBtn) return;            // 미지원 → 버튼 숨김 유지
+  $micBtn.hidden = false;
+  micRecog = new SR();
+  micRecog.lang = "ko-KR";
+  micRecog.continuous = true;
+  micRecog.interimResults = true;
+  micRecog.onresult = (ev) => {
+    let interim = "";
+    for (let i = ev.resultIndex; i < ev.results.length; i++){
+      const tr = ev.results[i][0].transcript;
+      if (ev.results[i].isFinal) micFinal += tr; else interim += tr;
+    }
+    const joiner = (micBase && !/\s$/.test(micBase) && (micFinal || interim)) ? " " : "";
+    $textInput.value = micBase + joiner + micFinal + interim;
+    updateCharCounter();
+  };
+  micRecog.onerror = (ev) => {
+    if (ev.error === "not-allowed" || ev.error === "service-not-allowed") showToast("마이크 권한이 필요해요");
+    else if (ev.error === "no-speech") { return; }   // 잠깐 말이 없을 때 → onend가 재시작
+    stopMic();
+  };
+  micRecog.onend = () => {
+    // continuous라도 모바일 등에서 자동 종료됨 → 녹음 의도가 살아있으면 이어서 재시작
+    if (micRecording){ try { micRecog.start(); } catch(_){ stopMic(); } }
+  };
+}
+function startMic(){
+  if (!micRecog || micRecording) return;
+  micBase = $textInput.value || "";
+  micFinal = "";
+  micRecording = true;
+  $micBtn.classList.add("recording");
+  const lbl = $micBtn.querySelector(".mic-label"); if (lbl) lbl.textContent = "듣는 중…";
+  try { micRecog.start(); } catch(_){ stopMic(); }
+}
+function stopMic(){
+  if (!micRecording && !micRecog) return;
+  micRecording = false;
+  $micBtn.classList.remove("recording");
+  const lbl = $micBtn.querySelector(".mic-label"); if (lbl) lbl.textContent = "음성";
+  try { micRecog && micRecog.stop(); } catch(_){}
+}
+if ($micBtn) $micBtn.addEventListener("click", () => { micRecording ? stopMic() : startMic(); });
+initMic();
 
 document.getElementById("cancelBtn").addEventListener("click", closeEditor);
 document.getElementById("saveBtn").addEventListener("click", saveFromEditor);
