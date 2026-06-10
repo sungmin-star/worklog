@@ -913,6 +913,14 @@
   .cat-badge:hover{ background:var(--surface-2); }
   .sb-cat-dot{ width:9px; height:9px; border-radius:50%; display:inline-block; flex:none; }
 
+  /* ---------- 시간(일정 시각) ---------- */
+  .opt{ color:var(--muted); font-weight:400; font-size:12px; }
+  .time-row{ display:flex; gap:8px; align-items:center; }
+  .time-input{ font:inherit; font-size:16px; color:var(--text); background:var(--surface-2); border:1px solid transparent; border-radius:10px; padding:10px 12px; outline:none; }
+  .time-input:focus{ border-color:var(--accent); background:var(--surface); }
+  .time-clear{ padding:8px 12px; }
+  .entry-time{ margin-left:8px; font-size:11.5px; color:var(--accent); font-weight:600; }
+
   .dropzone{
     border:1.5px dashed var(--line-strong);
     border-radius:var(--radius-sm);
@@ -1330,6 +1338,13 @@
         <div class="cat-row" id="catRow"></div>
       </div>
       <div class="field">
+        <label for="timeInput">시간 <span class="opt">(선택 · 일정 시각)</span></label>
+        <div class="time-row">
+          <input id="timeInput" class="time-input" type="time" />
+          <button type="button" class="btn ghost time-clear" id="timeClear">지움</button>
+        </div>
+      </div>
+      <div class="field">
         <label for="textInput">본문</label>
         <textarea id="textInput" placeholder="오늘은 무엇을 하셨나요?"></textarea>
         <div class="char-counter" id="charCounter">0자</div>
@@ -1651,7 +1666,7 @@ function entryToRow(e){
   return {
     id: e.id, user_id: currentUser.id, date: e.date,
     text: e.text || "", images: e.images || [],
-    category: e.category || "",
+    category: e.category || "", time: e.time || "",
     created_at: e.createdAt, updated_at: e.updatedAt,
     deleted_at: e.deletedAt != null ? e.deletedAt : null,
     pinned_at: e.pinnedAt != null ? e.pinnedAt : null,
@@ -1852,7 +1867,7 @@ function makeSupabaseStorage(){
         date: row.date,
         text: row.text || "",
         images: Array.isArray(row.images) ? row.images : [],
-        category: row.category || "",
+        category: row.category || "", time: row.time || "",
         createdAt: Number(row.created_at) || 0,
         updatedAt: Number(row.updated_at) || 0,
         deletedAt: row.deleted_at != null ? Number(row.deleted_at) : null,
@@ -2318,7 +2333,21 @@ async function loadAll(){
 }
 function sortEntries(a, b){
   if (a.date !== b.date) return a.date < b.date ? 1 : -1;
+  // 같은 날짜: 시간 있는 일정 먼저(시간 오름차순), 시간 없는 기록은 최신순
+  const ta = a.time || "", tb = b.time || "";
+  if (ta && tb && ta !== tb) return ta < tb ? -1 : 1;
+  if (ta && !tb) return -1;
+  if (!ta && tb) return 1;
   return (b.createdAt || 0) - (a.createdAt || 0);
+}
+// "15:00" → "오후 3:00"
+function fmtTime(t){
+  const m = /^(\d{1,2}):(\d{2})$/.exec(t || "");
+  if (!m) return "";
+  let h = +m[1]; const mm = m[2];
+  const ap = h < 12 ? "오전" : "오후";
+  let h12 = h % 12; if (h12 === 0) h12 = 12;
+  return `${ap} ${h12}:${mm}`;
 }
 async function saveEntry(entry){
   await storage.set(KEY_PREFIX + entry.id, JSON.stringify(entry));
@@ -2816,10 +2845,11 @@ function renderEntry(e, query){
   const len = textLen(e.text);
   const metaHtml = len ? `<span class="entry-chars">${fmtNum(len)}자</span>` : "";
   const catBadge = e.category ? `<button class="cat-badge" type="button" data-catfilter="${escapeHtml(e.category)}" style="--c:${catColor(e.category)}" title="‘${escapeHtml(e.category)}’ 분류만 보기">${escapeHtml(e.category)}</button>` : "";
+  const timeHtml = e.time ? `<span class="entry-time">🕘 ${escapeHtml(fmtTime(e.time))}</span>` : "";
   return `
     <article class="entry ${e.pinnedAt ? "is-pinned" : ""}" data-id="${escapeHtml(e.id)}">
       <div class="entry-head">
-        <div class="entry-date">${dateHtml}${catBadge}${metaHtml}</div>
+        <div class="entry-date">${dateHtml}${timeHtml}${catBadge}${metaHtml}</div>
         <div class="entry-actions">
           <button class="entry-pin ${e.pinnedAt ? "pinned" : ""}" type="button" data-pin="${escapeHtml(e.id)}" aria-label="즐겨찾기" title="즐겨찾기">${e.pinnedAt ? "★" : "☆"}</button>
           <button class="entry-edit" type="button" data-edit="${escapeHtml(e.id)}" aria-label="기록 수정">
@@ -2897,6 +2927,9 @@ const $dateHint = document.getElementById("dateHint");
 const $textInput = document.getElementById("textInput");
 const $catRow = document.getElementById("catRow");
 const $catManageBtn = document.getElementById("catManageBtn");
+const $timeInput = document.getElementById("timeInput");
+const $timeClear = document.getElementById("timeClear");
+$timeClear && $timeClear.addEventListener("click", () => { $timeInput.value = ""; });
 // 본문에서 자동 인식한 날짜를 기억해, 같은 값으로는 다시 덮어쓰지 않음
 let lastAutoDate = null;
 
@@ -3011,6 +3044,7 @@ function openEditor(entry, opts){
   state.editing = entry || null;
   state.draftImages = entry ? [...(entry.images || [])] : [];
   state.draftCategory = entry ? (entry.category || "") : ((opts && opts.category) || "");
+  if ($timeInput) $timeInput.value = entry ? (entry.time || "") : ((opts && opts.time) || "");
   state.catManage = false;
   renderCatRow();
   $editorTitle.textContent = entry ? "기록 수정" : "새 기록";
@@ -3153,6 +3187,7 @@ async function saveFromEditor(){
       ...state.editing,
       date, text, images: storedImages,
       category: state.draftCategory || "",
+      time: ($timeInput && $timeInput.value) || "",
       updatedAt: now,
     };
   } else {
@@ -3160,6 +3195,7 @@ async function saveFromEditor(){
       id,
       date, text, images: storedImages,
       category: state.draftCategory || "",
+      time: ($timeInput && $timeInput.value) || "",
       createdAt: now,
       updatedAt: now,
     };
@@ -3924,8 +3960,9 @@ function openDayList(iso){
     const snip = (e.text || "").replace(/\s+/g, " ").trim().slice(0, 56) || "(사진만)";
     const ph = (e.images && e.images.length) ? ` 📷${e.images.length}` : "";
     const pin = e.pinnedAt ? "★ " : "";
+    const tm = e.time ? `🕘 ${escapeHtml(fmtTime(e.time))} · ` : "";
     return `<button class="jv-row" type="button" data-dayopen="${escapeHtml(e.id)}">` +
-      `<b>${pin}기록 ${i + 1}${ph}</b><span>${escapeHtml(snip)}</span></button>`;
+      `<b>${pin}${tm || ("기록 " + (i + 1))}${ph}</b><span>${escapeHtml(snip)}</span></button>`;
   }).join("") + `</div>`;
   $dayScrim.dataset.open = "true";
   $dayScrim.setAttribute("aria-hidden", "false");
