@@ -1289,6 +1289,7 @@
           <div class="divider"></div>
           <button id="exportBtn" role="menuitem">백업 내려받기</button>
           <button id="importBtn" role="menuitem">백업 가져오기</button>
+          <button id="handoffBtn" role="menuitem">📄 인수인계 자료(PDF)</button>
           <div class="divider"></div>
           <button id="aboutBtn" role="menuitem">작업 일지에 대하여</button>
           <div class="divider"></div>
@@ -3465,6 +3466,12 @@ document.getElementById("exportBtn").addEventListener("click", () => {
 document.getElementById("importBtn").addEventListener("click", () => {
   setMenu(false);
   document.getElementById("importFile").click();
+});
+document.getElementById("handoffBtn").addEventListener("click", () => {
+  setMenu(false);
+  // 작업 종료마다 홈페이지 저장소에 자동 업로드되는 인수인계 PDF
+  const w = window.open("./HANDOFF.pdf", "_blank");
+  if (!w) showToast("팝업이 차단됐어요. 허용 후 다시 시도해주세요");
 });
 document.getElementById("aboutBtn").addEventListener("click", () => {
   setMenu(false);
