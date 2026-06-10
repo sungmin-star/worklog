@@ -234,6 +234,14 @@
     margin-bottom:10px;
   }
   h1.title{ margin:0; line-height:0; }
+  .home-logo{
+    display:inline-flex; padding:0; border:0; background:none;
+    cursor:pointer; line-height:0; border-radius:12px;
+    -webkit-tap-highlight-color:transparent;
+    transition:transform .12s ease, opacity .12s ease;
+  }
+  .home-logo:hover{ opacity:.82; }
+  .home-logo:active{ transform:scale(0.97); }
   .brand-logo{
     display:block;
     width:180px;
@@ -495,6 +503,22 @@
   .jarvis-fab:hover{ transform:scale(1.06); }
   .jarvis-fab:active{ transform:scale(0.94); }
 
+  /* 맨 위로 — 스크롤을 내리면 나타나는 버튼 (자비스 버튼 위) */
+  .to-top{
+    position:fixed; right:18px; bottom:80px; z-index:149;
+    width:44px; height:44px; border-radius:50%;
+    border:1px solid var(--line); background:var(--surface); color:var(--text);
+    box-shadow:var(--shadow-lg); cursor:pointer;
+    display:inline-flex; align-items:center; justify-content:center;
+    opacity:0; visibility:hidden; transform:translateY(8px);
+    transition:opacity .18s ease, transform .18s ease, visibility .18s;
+  }
+  .to-top svg{ width:20px; height:20px; }
+  body.app-ready .to-top.show{ opacity:1; visibility:visible; transform:translateY(0); }
+  body.modal-open .to-top{ opacity:0; visibility:hidden; }
+  .to-top:hover{ background:var(--surface-2); }
+  .to-top:active{ transform:scale(0.92); }
+
   .jarvis-scrim{ align-items:flex-end; justify-content:flex-end; padding:20px; }
   .jarvis-panel{
     width:min(420px,100%); height:min(620px,84vh);
@@ -534,6 +558,7 @@
     .jarvis-scrim{ justify-content:center; padding:0; }
     .jarvis-panel{ width:100%; height:86vh; border-radius:18px 18px 0 0; align-self:flex-end; }
     .jarvis-fab{ right:14px; bottom:14px; }
+    .to-top{ right:14px; bottom:74px; }
   }
 
   /* ---------- 프로젝트 + 할일 ---------- */
@@ -803,7 +828,11 @@
     transition:border-color .15s ease, color .15s ease;
   }
   .date-cal:hover{ background:var(--line); color:var(--text); }
-  .date-cal svg{ width:20px; height:20px; pointer-events:none; }
+  .date-cal svg{
+    position:absolute; top:50%; left:50%;
+    transform:translate(-50%,-50%);
+    width:20px; height:20px; pointer-events:none;
+  }
   .date-cal input[type="date"]{
     position:absolute; inset:0;
     width:100%; height:100%;
@@ -1042,6 +1071,8 @@
   .auth-logo{ display:block; width:170px; max-width:72%; height:auto; margin:0 auto 4px; border-radius:12px; }
   /* 테마별 로고 전환 (다크는 배경 투명 로고) */
   .logo-dark{ display:none; }
+  /* 라이트 로고: 크림색 배경을 페이지/카드 배경에 자연스럽게 녹임(사각형 제거) */
+  .logo-light{ mix-blend-mode:darken; }
   @media (prefers-color-scheme: dark){
     :root:not([data-theme="light"]) .logo-light{ display:none; }
     :root:not([data-theme="light"]) .brand-logo.logo-dark{ display:block; }
@@ -1182,7 +1213,7 @@
       <button class="sidebar-toggle" id="sidebarToggle" aria-label="카테고리 열기">
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18M3 12h18M3 18h18"></path></svg>
       </button>
-      <h1 class="title"><img class="brand-logo logo-light" src="./logo.png" alt="L'Heure Bleue" /><img class="brand-logo logo-dark" src="./logo-dark.png" alt="L'Heure Bleue" /></h1>
+      <h1 class="title"><button type="button" id="homeLogo" class="home-logo" aria-label="홈으로 (새로고침)" title="홈으로 · 새로고침"><img class="brand-logo logo-light" src="./logo.png" alt="L'Heure Bleue" /><img class="brand-logo logo-dark" src="./logo-dark.png" alt="L'Heure Bleue" /></button></h1>
       <div class="header-actions">
       <button class="icon-btn" id="themeBtn" aria-label="라이트/다크 테마 전환"></button>
       <div class="menu-wrap">
@@ -1270,7 +1301,7 @@
       <div class="summary-body" id="summaryBody"></div>
       <div class="modal-actions">
         <div class="right" style="margin-left:auto">
-          <button class="btn ghost" id="summaryCopy" hidden>복사</button>
+          <button class="btn ghost" id="summaryOpen" hidden>새 창에서 보기</button>
           <button class="btn" id="summaryClose">닫기</button>
         </div>
       </div>
@@ -1278,6 +1309,9 @@
   </div>
 
   <!-- Jarvis (자동응답 비서) -->
+  <button class="to-top" id="toTopBtn" aria-label="맨 위로" title="맨 위로">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
+  </button>
   <button class="jarvis-fab" id="jarvisFab" aria-label="자비스 열기" title="자비스">✦</button>
   <div class="scrim jarvis-scrim" id="jarvisScrim" aria-hidden="true">
     <div class="jarvis-panel" role="dialog" aria-modal="true" aria-label="자비스">
@@ -3598,8 +3632,34 @@ document.addEventListener("keydown", (e) => {
 const $summaryScrim = document.getElementById("summaryScrim");
 const $summaryBody = document.getElementById("summaryBody");
 const $summaryClose = document.getElementById("summaryClose");
-const $summaryCopy = document.getElementById("summaryCopy");
+const $summaryOpen = document.getElementById("summaryOpen");
 let summaryText = "";
+let summaryScope = "";
+
+/* 요약 결과를 새 창(읽기 전용 페이지)에서 보여준다 */
+function openSummaryWindow(text, scope){
+  const w = window.open("", "_blank");
+  if (!w){ showToast("팝업이 차단됐어요. 브라우저에서 팝업을 허용해 주세요"); return; }
+  const safe = escapeHtml(text || "");
+  const safeScope = escapeHtml(scope || "전체 기록");
+  w.document.write(
+    '<!doctype html><html lang="ko"><head><meta charset="utf-8">' +
+    '<meta name="viewport" content="width=device-width, initial-scale=1">' +
+    '<title>✦ AI 요약 · L\'Heure Bleue</title><style>' +
+    ':root{color-scheme:light dark}' +
+    '*{box-sizing:border-box}' +
+    'body{margin:0;background:#ece9e1;color:#242420;font-family:-apple-system,BlinkMacSystemFont,"Apple SD Gothic Neo","Noto Sans KR",system-ui,sans-serif;line-height:1.75;}' +
+    '@media(prefers-color-scheme:dark){body{background:#1d1d1f;color:#ececec}.box{background:#2a2a2c!important;border-color:#3a3a3d!important}.meta{color:#9a9a9e!important}h1{color:#cdae6a!important}}' +
+    'main{max-width:720px;margin:0 auto;padding:40px 24px 80px;}' +
+    'h1{font-family:"Cormorant Garamond",Georgia,serif;font-weight:600;font-size:30px;letter-spacing:.02em;margin:0 0 4px;color:#8b7355;}' +
+    '.meta{color:#7a766c;font-size:13px;margin:0 0 22px;}' +
+    '.box{white-space:pre-wrap;word-break:break-word;background:#f6f3ed;border:1px solid #dcd7cb;border-radius:12px;padding:22px 24px;font-size:15.5px;}' +
+    '</style></head><body><main>' +
+    '<h1>✦ AI 요약</h1><p class="meta">' + safeScope + ' · ' + new Date().toLocaleString("ko-KR") + '</p>' +
+    '<div class="box">' + safe + '</div></main></body></html>'
+  );
+  w.document.close();
+}
 
 function openSummary(){
   $summaryScrim.dataset.open = "true";
@@ -3650,41 +3710,49 @@ async function runSummary(){
   const prompt = buildSummaryPrompt(entries);
   summaryText = prompt;
 
+  summaryScope = scope;
   openSummary();
-  $summaryCopy.hidden = true;
+  $summaryOpen.hidden = true;
   $summaryBody.innerHTML =
     `<div class="summary-loading"><span class="spinner"></span>요약 중… (${escapeHtml(scope)} · ${entries.length}건)</div>`;
 
-  // claude.ai 아티팩트 안: 모델을 그 자리에서 호출
+  const showResult = (text) => {
+    summaryText = String(text || "").trim() || "(요약 결과가 비어 있어요)";
+    $summaryBody.textContent = summaryText;
+    $summaryOpen.hidden = false;
+  };
+
+  // ① 서버 함수로 진짜 클로드 호출 (키 설정돼 있으면 동작)
+  const question =
+    "아래 내 작업 일지를 한국어로 간결하게 요약해줘. " +
+    "주요하게 한 일과 성과를 불릿으로 정리하고, 반복되는 주제·패턴이 있으면 짚어주고, 마지막에 한 줄 총평을 덧붙여줘.";
+  try {
+    const backendText = await callJarvisBackend(question, entries);
+    if (backendText){ showResult(backendText); return; }
+  } catch(err){ console.error(err); }
+
+  // ② claude.ai 아티팩트 안: 모델을 그 자리에서 호출
   if (window.claude && typeof window.claude.complete === "function"){
     try {
       const out = await window.claude.complete(prompt);
-      summaryText = String(out || "").trim() || "(요약 결과가 비어 있어요)";
-      $summaryBody.textContent = summaryText;
-      $summaryCopy.hidden = false;
+      showResult(out);
       return;
-    } catch(err){
-      console.error(err);
-      // 실패 시 복사 폴백으로 진행
-    }
+    } catch(err){ console.error(err); }
   }
 
-  // 폴백: 요약용 내용을 복사 → Claude 대화창에 붙여넣기
+  // ③ 폴백: AI 미연동 → 요약용 내용을 '새 창에서 보기'로 확인 후 Claude에 붙여넣기
   summaryText = prompt;
-  const copied = await copyText(prompt);
   $summaryBody.innerHTML =
-    `<div class="summary-note">이 화면에서는 자동 요약을 바로 쓸 수 없어요(claude.ai 아티팩트에서만 즉시 요약). ` +
-    `${copied ? "<b>아래 내용이 복사됐어요.</b>" : "아래 내용을 복사해서"} <b>Claude 대화창에 붙여넣고 보내면</b> 요약해 줍니다.</div>` +
+    `<div class="summary-note">이 기기에서는 자동 요약이 아직 연결되지 않았어요. ` +
+    `<b>‘새 창에서 보기’</b>를 눌러 요약용 내용을 연 뒤 <b>Claude 대화창에 붙여넣고 보내면</b> 요약해 줍니다.</div>` +
     `<div class="summary-pre">${escapeHtml(prompt)}</div>`;
-  $summaryCopy.hidden = false;
-  if (copied) showToast("Claude에 붙여넣을 내용을 복사했어요");
+  $summaryOpen.hidden = false;
 }
 
 $summaryClose.addEventListener("click", closeSummary);
 $summaryScrim.addEventListener("click", (e) => { if (e.target === $summaryScrim) closeSummary(); });
-$summaryCopy.addEventListener("click", async () => {
-  const ok = await copyText(summaryText);
-  showToast(ok ? "복사했어요" : "복사하지 못했어요");
+$summaryOpen.addEventListener("click", () => {
+  openSummaryWindow(summaryText, summaryScope);
 });
 document.getElementById("summaryBtn").addEventListener("click", runSummary);
 
@@ -3953,6 +4021,40 @@ function jarvisFormat(t){
 }
 
 $jarvisFab.addEventListener("click", openJarvis);
+
+/* ── 맨 위로 버튼: 스크롤 내리면 표시, 누르면 부드럽게 최상단 ── */
+const $toTop = document.getElementById("toTopBtn");
+if ($toTop){
+  const updateToTop = () => {
+    const y = window.pageYOffset || document.documentElement.scrollTop || 0;
+    $toTop.classList.toggle("show", y > 280);
+  };
+  window.addEventListener("scroll", updateToTop, { passive: true });
+  updateToTop();
+  $toTop.addEventListener("click", () => window.scrollTo({ top: 0, behavior: "smooth" }));
+}
+
+/* ── 로고 클릭: 홈으로 + 새로고침(클라우드 재동기화) ── */
+const $homeLogo = document.getElementById("homeLogo");
+if ($homeLogo){
+  let homeBusy = false;
+  $homeLogo.addEventListener("click", async () => {
+    state.view = "timeline";
+    clearFilters();
+    setMenu(false);
+    closeSidebar();
+    render();
+    window.scrollTo({ top: 0, behavior: "smooth" });
+    if (homeBusy) return;
+    homeBusy = true;
+    if (isCloud()){
+      try { await loadAll(); render(); } catch(_){}
+      try { await loadProjects(); } catch(_){}
+    }
+    homeBusy = false;
+  });
+}
+
 document.getElementById("jarvisClose").addEventListener("click", closeJarvis);
 $jarvisScrim.addEventListener("click", (e) => { if (e.target === $jarvisScrim) closeJarvis(); });
 $jarvisForm.addEventListener("submit", (e) => { e.preventDefault(); jarvisAsk($jarvisInput.value); });
