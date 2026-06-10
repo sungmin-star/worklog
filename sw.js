@@ -2,7 +2,7 @@
    - 앱 셸(HTML·SDK·폰트·아이콘)을 캐시해 오프라인에서도 앱이 켜지게 함
    - Supabase API/스토리지 요청은 캐시하지 않고 항상 네트워크 사용
    캐시 버전을 올리면(예: v2) 이전 캐시는 자동 정리됨 */
-const CACHE = "worklog-v24";
+const CACHE = "worklog-v25";
 const PRECACHE = [
   "./",
   "./index.html",
