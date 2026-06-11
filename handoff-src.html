@@ -1,0 +1,224 @@
+<!doctype html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>작업일지 인수인계 자료</title>
+<style>
+  @page { size: A4; margin: 18mm 16mm; }
+  * { box-sizing: border-box; -webkit-print-color-adjust: exact; print-color-adjust: exact; }
+  :root{
+    --ink:#1c2433; --muted:#5b6577; --line:#e2e6ee; --soft:#f5f7fb;
+    --blue:#3a4a7a; --blue2:#62739c; --accent:#7c5cff; --green:#1f9d6b; --amber:#c98a16;
+  }
+  html,body{ margin:0; padding:0; }
+  body{
+    font-family:"Apple SD Gothic Neo","Pretendard",-apple-system,BlinkMacSystemFont,"Segoe UI",sans-serif;
+    color:var(--ink); font-size:11pt; line-height:1.62; letter-spacing:-0.1px;
+  }
+  h1,h2,h3{ line-height:1.3; margin:0; }
+  small{ color:var(--muted); }
+  code{ font-family:"SFMono-Regular",Menlo,Consolas,monospace; font-size:9.5pt; background:var(--soft); padding:1px 5px; border-radius:5px; border:1px solid var(--line); }
+
+  /* ── 표지 ── */
+  .cover{ height:251mm; display:flex; flex-direction:column; justify-content:center; align-items:center; text-align:center;
+          background:linear-gradient(160deg,#101a33 0%,#243355 48%,#3a4a7a 100%); color:#fff; border-radius:14px; padding:40px;
+          page-break-after:always; }
+  .cover img{ width:150px; height:auto; margin-bottom:26px; opacity:.98; }
+  .cover .kicker{ font-size:12pt; letter-spacing:4px; color:#bcd0ff; text-transform:uppercase; margin-bottom:14px; }
+  .cover h1{ font-size:30pt; font-weight:800; letter-spacing:-0.5px; }
+  .cover .sub{ font-size:13pt; color:#dbe5ff; margin-top:14px; }
+  .cover .meta{ margin-top:38px; font-size:10.5pt; color:#c3d1f0; line-height:2; }
+  .cover .badge{ display:inline-block; margin-top:30px; background:rgba(255,255,255,.14); border:1px solid rgba(255,255,255,.35);
+                 padding:7px 16px; border-radius:999px; font-size:10pt; }
+
+  /* ── 본문 ── */
+  section{ page-break-inside:avoid; margin-bottom:20px; }
+  .sec-head{ display:flex; align-items:center; gap:10px; border-bottom:2px solid var(--blue); padding-bottom:7px; margin-bottom:13px; }
+  .sec-no{ background:var(--blue); color:#fff; width:25px; height:25px; border-radius:7px; display:inline-flex; align-items:center; justify-content:center; font-weight:700; font-size:11pt; flex-shrink:0; }
+  .sec-head h2{ font-size:14pt; font-weight:700; color:var(--blue); }
+  p{ margin:0 0 8px; }
+  ul{ margin:4px 0 8px; padding-left:18px; }
+  li{ margin:3px 0; }
+
+  table{ width:100%; border-collapse:collapse; margin:6px 0 4px; font-size:10pt; }
+  th,td{ text-align:left; padding:7px 10px; border-bottom:1px solid var(--line); vertical-align:top; }
+  th{ background:var(--soft); color:var(--muted); font-weight:600; width:32%; white-space:nowrap; }
+
+  .card{ background:var(--soft); border:1px solid var(--line); border-radius:10px; padding:13px 15px; margin:8px 0; }
+  .new{ display:inline-block; background:var(--accent); color:#fff; font-size:8pt; font-weight:700; padding:1px 7px; border-radius:999px; vertical-align:middle; margin-left:6px; letter-spacing:.5px; }
+  .tag{ display:inline-block; background:#eef1f8; color:var(--blue); border:1px solid #dde3f0; font-size:9pt; padding:1px 8px; border-radius:999px; margin:2px 3px 2px 0; }
+  .warn{ background:#fff7e8; border:1px solid #f0dcae; border-radius:10px; padding:11px 14px; margin:8px 0; font-size:10pt; }
+  .ok{ color:var(--green); font-weight:600; }
+  .step{ counter-reset:none; }
+  .step ol{ padding-left:20px; }
+  .grid2{ display:grid; grid-template-columns:1fr 1fr; gap:8px; }
+  .feat{ background:#fff; border:1px solid var(--line); border-radius:9px; padding:10px 12px; }
+  .feat b{ display:block; font-size:10.5pt; margin-bottom:2px; }
+  .feat span{ font-size:9.3pt; color:var(--muted); }
+  .foot{ margin-top:14px; padding-top:10px; border-top:1px solid var(--line); font-size:9pt; color:var(--muted); text-align:center; }
+</style>
+</head>
+<body>
+
+  <!-- 표지 -->
+  <div class="cover">
+    <img src="./logo-dark.png" alt="L'Heure Bleue" />
+    <div class="kicker">Handoff Document</div>
+    <h1>작업일지 인수인계 자료</h1>
+    <div class="sub">L'Heure Bleue · 1인용 작업 기록 PWA</div>
+    <div class="meta">
+      문서 기준일 : 2026년 6월 12일<br/>
+      앱 버전 : sw&nbsp;v34 (전체보기 · 음성 입력 안정화 반영)<br/>
+      작성 : 방성민
+    </div>
+    <div class="badge">https://sungmin-star.github.io/worklog/</div>
+  </div>
+
+  <!-- 1. 서비스 개요 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">1</span><h2>서비스 개요</h2></div>
+    <p><b>L'Heure Bleue(작업일지)</b>는 매일의 작업 흔적을 사진·짧은 글·태그로 남기는 1인용 일지 앱입니다.
+       설치형 웹앱(PWA)으로 폰·PC 어디서나 동작하며, 로그인하면 기기 간 자동 동기화됩니다.</p>
+    <div class="grid2">
+      <div class="feat"><b>📝 기록 중심</b><span>날짜·시간·분류·사진·태그로 빠르게 기록</span></div>
+      <div class="feat"><b>🔗 연결 사고</b><span>[[위키링크]]·태그로 글을 잇고 그래프로 시각화</span></div>
+      <div class="feat"><b>✦ AI 비서 '자비스'</b><span>기록을 근거로 요약·회고·할일 안내</span></div>
+      <div class="feat"><b>📱 오프라인 PWA</b><span>설치·오프라인 사용·자동 업데이트</span></div>
+    </div>
+  </section>
+
+  <!-- 2. 접속 / 배포 정보 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">2</span><h2>접속 · 배포 정보</h2></div>
+    <table>
+      <tr><th>실서비스 주소</th><td><code>https://sungmin-star.github.io/worklog/</code> (GitHub Pages, HTTPS)</td></tr>
+      <tr><th>소스 저장소</th><td><code>github.com/sungmin-star/worklog</code> (public)</td></tr>
+      <tr><th>배포 소스</th><td><code>main</code> 브랜치 / 루트 — 진입 파일 <code>index.html</code></td></tr>
+      <tr><th>원본 작업 파일</th><td>로컬 <code>iCloud/정리/worklog.html</code> → 게시 시 <code>index.html</code>로 업로드</td></tr>
+      <tr><th>인수인계 문서</th><td>저장소 <code>HANDOFF.pdf</code> · 앱 메뉴 “📄 인수인계 자료(PDF)”에서 열람</td></tr>
+    </table>
+    <div class="warn"><b>권한 메모</b> · 저장소 쓰기 권한은 <b>sungmin-star</b> 계정에 있습니다. (gh CLI의 growththink 계정은 읽기 전용)</div>
+  </section>
+
+  <!-- 3. 기술 구성 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">3</span><h2>기술 구성</h2></div>
+    <table>
+      <tr><th>프런트엔드</th><td>단일 <code>worklog.html</code> 파일 (HTML+CSS+Vanilla JS, 빌드 도구 없음)</td></tr>
+      <tr><th>오프라인</th><td><code>sw.js</code> 서비스 워커 — 앱 셸 캐시, 버전 올리면 자동 갱신</td></tr>
+      <tr><th>설치(PWA)</th><td><code>manifest.json</code> + 아이콘(192/512/180)</td></tr>
+      <tr><th>백엔드</th><td>Supabase (인증 · DB · 이미지 Storage · Edge Function)</td></tr>
+      <tr><th>AI</th><td>Supabase Edge Function <code>jarvis</code> → Anthropic Claude API 호출</td></tr>
+      <tr><th>호스팅</th><td>GitHub Pages (정적)</td></tr>
+    </table>
+    <p><small>※ 빌드/번들러가 없어 <code>worklog.html</code>을 그대로 수정하면 됩니다. 의존성은 CDN(Supabase JS SDK)만 사용합니다.</small></p>
+  </section>
+
+  <!-- 4. 주요 기능 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">4</span><h2>주요 기능</h2></div>
+    <div class="grid2">
+      <div class="feat"><b>타임라인 기록</b><span>날짜·작성시각·분류·사진·#태그·[[링크]]·⭐즐겨찾기</span></div>
+      <div class="feat"><b>👁 메모 전체보기<span class="new">NEW</span></b><span>메모를 누르면 읽기 전용 전체보기, 수정은 따로 버튼. v33</span></div>
+      <div class="feat"><b>🎤 음성 입력</b><span>본문을 말로 받아쓰기 (한국어, 실시간). v34에서 중지(취소) 안정화</span></div>
+      <div class="feat"><b>📅 캘린더</b><span>일정 시각 표시, 날짜별 기록 열람·작성</span></div>
+      <div class="feat"><b>🕸 그래프</b><span>분류·[[위키링크]] 기준 관계 맵 시각화</span></div>
+      <div class="feat"><b>🖼 사진 갤러리</b><span>전체 사진 모아보기</span></div>
+      <div class="feat"><b>🗂 프로젝트·할일</b><span>목표 + 체크리스트, 진행률 관리</span></div>
+      <div class="feat"><b>✦ AI 요약·자비스</b><span>기록 근거 요약·회고·질의응답·할일 안내</span></div>
+      <div class="feat"><b>🔒 화면 잠금</b><span>PIN + 생체인증(WebAuthn)</span></div>
+      <div class="feat"><b>☁ 클라우드 동기화</b><span>로그인 시 기기 간 동기화(이미지 포함)</span></div>
+      <div class="feat"><b>💾 백업</b><span>JSON 내보내기 / 가져오기</span></div>
+    </div>
+    <div class="card">
+      <b>👁 메모 전체보기</b> — 타임라인 카드 본문이나 캘린더·그래프·자비스에서 메모를 누르면, 수정창이 아니라
+      내용을 <b>한눈에 읽는 전체보기</b>가 열립니다. 수정은 그 안의 <b>✏️ 수정</b> 버튼(또는 카드의 연필 아이콘)으로만 들어가도록 분리했습니다.
+    </div>
+    <div class="card">
+      <b>🎤 음성 입력 사용법</b> — 새 기록/수정 화면의 본문 라벨 옆 <b>🎤 음성</b> 버튼을 누르면 받아쓰기가 시작됩니다.
+      말하면 실시간으로 본문에 입력되고, 다시 누르면 멈춥니다. 마이크 권한과 HTTPS가 필요하며, 미지원 브라우저에서는 버튼이 자동으로 숨겨집니다.
+      <small>(v34: 모바일에서 중지 버튼이 듣지 않던 문제를 고쳐, 누르는 즉시 멈춥니다.)</small>
+    </div>
+  </section>
+
+  <!-- 5. 데이터 & 저장소 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">5</span><h2>데이터 · 저장소</h2></div>
+    <p>로그인 여부에 따라 저장소가 달라집니다.</p>
+    <table>
+      <tr><th>비로그인</th><td>브라우저 <code>localStorage</code>에만 저장 (그 기기 전용)</td></tr>
+      <tr><th>로그인</th><td>Supabase를 저장소로 사용 → 기기 간 동기화. 이미지는 비공개 Storage 버킷 <code>worklog-images</code>에 업로드되고 화면엔 서명 URL로 표시</td></tr>
+      <tr><th>오프라인 큐</th><td>네트워크가 끊기면 변경을 로컬 큐에 쌓아 두었다가 복구 시 재전송</td></tr>
+    </table>
+    <p><b>주요 데이터 단위</b> — 기록(entry), 휴지통(trash), 프로젝트(project: 목표·할일), 분류(category).
+       모든 데이터는 “백업 내려받기(JSON)”로 언제든 이전 가능합니다.</p>
+  </section>
+
+  <!-- 6. Supabase 백엔드 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">6</span><h2>Supabase 백엔드 구성</h2></div>
+    <table>
+      <tr><th>프로젝트</th><td>리전 ap-northeast-2 · 본인(sungmin-star) Supabase 계정</td></tr>
+      <tr><th>인증</th><td>이메일/비밀번호 (가입 시 이름·생년월일 메타데이터)</td></tr>
+      <tr><th>이미지 Storage</th><td>비공개 버킷 <code>worklog-images</code> · 서명 URL(유효 1일)로 표시</td></tr>
+      <tr><th>Edge Function</th><td><code>jarvis</code> (ACTIVE) — 질문 + 기록을 받아 Claude API 호출 후 답변 반환</td></tr>
+      <tr><th>AI 모델</th><td>기본 sonnet (haiku/opus 전환 가능) · 입력 컨텍스트 약 14K자 제한</td></tr>
+    </table>
+    <div class="warn">
+      <b>AI 백엔드 활성화 스위치</b> · <code>jarvis</code> 함수는 이미 배포되어 있고 프런트도 연결돼 있습니다.
+      현재는 함수의 <code>ANTHROPIC_API_KEY</code> 시크릿이 비어 있어 “복사 폴백” 모드로 동작합니다.
+      이 키만 설정하면 ✦AI 요약·자비스 자유질문이 즉시 실제 AI 응답으로 작동합니다.
+    </div>
+    <p><small>※ 보안: 실제 API 키·서비스 키·계정 비밀번호는 이 문서에 포함하지 않습니다. 키 값은 Supabase 대시보드(Edge Function Secrets)와 로컬 설정 파일에서 관리합니다.</small></p>
+  </section>
+
+  <!-- 7. 배포 절차 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">7</span><h2>배포 절차 (중요)</h2></div>
+    <div class="step">
+      <ol>
+        <li>로컬 <code>worklog.html</code> 수정</li>
+        <li><b><code>sw.js</code>의 캐시 버전을 반드시 +1</b> (예: <code>worklog-v29 → v30</code>) — 이용자 앱이 자동 갱신되는 핵심</li>
+        <li>로컬 git 커밋 (기록용)</li>
+        <li>게시 저장소에 업로드: <code>worklog.html → index.html</code>, <code>sw.js → sw.js</code><br/>
+            <small>sungmin-star 권한으로 GitHub Contents API 또는 git push. 224KB 본문은 디스크 파일을 그대로(바이트 정확) 올릴 것</small></li>
+        <li>업로드 후 blob SHA를 로컬 <code>git hash-object</code>와 대조해 무결성 검증</li>
+        <li>1분 내 GitHub Pages 반영 → 폰에서 자동 업데이트</li>
+      </ol>
+    </div>
+    <div class="warn"><b>주의</b> · 게시 저장소는 <b>public</b>입니다. 어떤 비밀 키·비밀번호도 <code>index.html</code>/문서에 넣지 마세요. (공개용 publishable anon 키만 포함)</div>
+  </section>
+
+  <!-- 8. 변경 이력 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">8</span><h2>최근 변경 이력</h2></div>
+    <table>
+      <tr><th>v34</th><td>🎤 음성 입력 중지(취소) 안 되던 모바일 문제 수정 <span class="tag">최신</span></td></tr>
+      <tr><th>v33</th><td>👁 메모 클릭 시 읽기 전용 ‘전체보기’ 추가(수정은 따로 버튼) — 캘린더·그래프·자비스 공통</td></tr>
+      <tr><th>v31</th><td>모바일 회원가입 화면 세로 잘림 수정(스크롤)</td></tr>
+      <tr><th>v30</th><td>앱 아이콘 새 LB 모노그램으로 교체</td></tr>
+      <tr><th>v29</th><td>🎤 본문 음성 입력(Web Speech) 추가</td></tr>
+      <tr><th>v28</th><td>메뉴에 인수인계 자료(PDF) 링크 추가</td></tr>
+      <tr><th>v27</th><td>모든 기록에 작성 시각(createdAt) 표시</td></tr>
+      <tr><th>v26</th><td>새 기록 시간 현재시각 자동 표기</td></tr>
+      <tr><th>v25</th><td>일정 시간 필드 추가</td></tr>
+      <tr><th>이전</th><td>분류(카테고리)·그래프 뷰·캘린더·즐겨찾기·프로젝트/할일·자비스 AI 백엔드·옵시디언식(위키링크·일일노트·마크다운) 등</td></tr>
+    </table>
+  </section>
+
+  <!-- 9. 향후 개선 후보 -->
+  <section>
+    <div class="sec-head"><span class="sec-no">9</span><h2>향후 개선 후보</h2></div>
+    <ul>
+      <li><b>AI 백엔드 활성화</b> — 키 1개만 넣으면 실제 AI 요약·질의응답 작동 (인프라 완비)</li>
+      <li><b>할일 마감일 + 알림</b> — todo에 마감일 추가 + PWA 알림으로 오늘/이번주 할일 리마인드</li>
+      <li><b>통계 대시보드</b> — 월별 추이·분류 분포 차트 시각화</li>
+      <li><b>기록 내보내기(Markdown/PDF)</b> — 사람이 읽는 형식으로 출력</li>
+      <li><b>개별 기록 공유</b> — 한 건을 이미지/링크로 공유</li>
+    </ul>
+  </section>
+
+  <div class="foot">L'Heure Bleue · 작업일지 인수인계 자료 · 2026-06-12 · sw v34</div>
+
+</body>
+</html>
