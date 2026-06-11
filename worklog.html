@@ -3215,7 +3215,11 @@ $textInput.addEventListener("input", updateCharCounter);
 /* ── 음성 입력(Web Speech API) ───────────────────────────────
    본문에 말로 받아쓰기. 미지원 브라우저(예: 데스크톱 Firefox)는 버튼 숨김. */
 const $micBtn = document.getElementById("micBtn");
-let micRecog = null, micRecording = false, micBase = "", micFinal = "";
+let micRecog = null, micRecording = false, micStopping = false, micBase = "", micFinal = "";
+function micUI(on){
+  $micBtn.classList.toggle("recording", on);
+  const lbl = $micBtn.querySelector(".mic-label"); if (lbl) lbl.textContent = on ? "듣는 중…" : "음성";
+}
 function initMic(){
   const SR = window.SpeechRecognition || window.webkitSpeechRecognition;
   if (!SR || !$micBtn) return;            // 미지원 → 버튼 숨김 유지
@@ -3225,6 +3229,7 @@ function initMic(){
   micRecog.continuous = true;
   micRecog.interimResults = true;
   micRecog.onresult = (ev) => {
+    if (!micRecording) return;            // 중지 후 뒤늦게 들어온 결과는 무시
     let interim = "";
     for (let i = ev.resultIndex; i < ev.results.length; i++){
       const tr = ev.results[i][0].transcript;
@@ -3236,12 +3241,14 @@ function initMic(){
   };
   micRecog.onerror = (ev) => {
     if (ev.error === "not-allowed" || ev.error === "service-not-allowed") showToast("마이크 권한이 필요해요");
-    else if (ev.error === "no-speech") { return; }   // 잠깐 말이 없을 때 → onend가 재시작
+    else if (ev.error === "no-speech" && micRecording && !micStopping) return; // 잠깐 말이 없을 때 → onend가 재시작
     stopMic();
   };
   micRecog.onend = () => {
-    // continuous라도 모바일 등에서 자동 종료됨 → 녹음 의도가 살아있으면 이어서 재시작
-    if (micRecording){ try { micRecog.start(); } catch(_){ stopMic(); } }
+    // 사용자가 중지했으면(micStopping) 절대 재시작하지 않음 — 취소 보장
+    if (micStopping || !micRecording){ micStopping = false; micRecording = false; micUI(false); return; }
+    // continuous라도 모바일에서 자동 종료됨 → 녹음 의도가 살아있으면 이어서 재시작
+    try { micRecog.start(); } catch(_){ stopMic(); }
   };
 }
 function startMic(){
@@ -3249,16 +3256,20 @@ function startMic(){
   micBase = $textInput.value || "";
   micFinal = "";
   micRecording = true;
-  $micBtn.classList.add("recording");
-  const lbl = $micBtn.querySelector(".mic-label"); if (lbl) lbl.textContent = "듣는 중…";
+  micStopping = false;
+  micUI(true);
   try { micRecog.start(); } catch(_){ stopMic(); }
 }
 function stopMic(){
-  if (!micRecording && !micRecog) return;
+  if (!micRecog) return;
+  // 즉시 멈춘 것처럼 보이게 상태/UI 먼저 정리
+  const wasRec = micRecording;
   micRecording = false;
-  $micBtn.classList.remove("recording");
-  const lbl = $micBtn.querySelector(".mic-label"); if (lbl) lbl.textContent = "음성";
-  try { micRecog && micRecog.stop(); } catch(_){}
+  micStopping = true;
+  micUI(false);
+  // abort()는 즉시 종료(대기중 결과 폐기) → 모바일에서 stop() 무시 문제 회피
+  try { micRecog.abort(); } catch(_){ try { micRecog.stop(); } catch(_){} }
+  if (!wasRec) micStopping = false;
 }
 if ($micBtn) $micBtn.addEventListener("click", () => { micRecording ? stopMic() : startMic(); });
 initMic();
