@@ -2523,10 +2523,15 @@ async function loadAll(){
   }
 }
 function sortEntries(a, b){
+  // 즐겨찾기(★) 먼저 — 최근 고정한 것이 맨 위
+  const pa = a.pinnedAt || 0, pb = b.pinnedAt || 0;
+  if (!!pa !== !!pb) return pa ? -1 : 1;
+  if (pa && pb && pa !== pb) return pb - pa;
+  // 날짜 최신 먼저
   if (a.date !== b.date) return a.date < b.date ? 1 : -1;
-  // 같은 날짜: 시간 있는 일정 먼저(시간 오름차순), 시간 없는 기록은 최신순
+  // 같은 날짜: 시간 최신 먼저(새 메모가 위로), 시간 없는 기록은 작성 최신순
   const ta = a.time || "", tb = b.time || "";
-  if (ta && tb && ta !== tb) return ta < tb ? -1 : 1;
+  if (ta && tb && ta !== tb) return ta < tb ? 1 : -1;
   if (ta && !tb) return -1;
   if (!ta && tb) return 1;
   return (b.createdAt || 0) - (a.createdAt || 0);
@@ -3944,6 +3949,7 @@ $entries.addEventListener("click", (e) => {
       entry.updatedAt = Date.now();
       saveEntry(entry).catch(err => { console.error(err); showToast("저장에 실패했어요"); });
       updateSyncIndicator();
+      state.entries.sort(sortEntries);
       render();
     }
     return;
@@ -4606,6 +4612,7 @@ $viewPinBtn && $viewPinBtn.addEventListener("click", () => {
   let dl = entry.date; try { dl = formatDateLine(entry.date).full; } catch(_){}
   $viewTitle.innerHTML = `${entry.pinnedAt ? "★ " : ""}${escapeHtml(dl)}`;
   showToast(entry.pinnedAt ? "자주 보는 메모에 고정했어요" : "고정을 해제했어요");
+  state.entries.sort(sortEntries);
   render();
 });
 document.getElementById("viewEditBtn").addEventListener("click", () => {
