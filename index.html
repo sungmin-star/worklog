@@ -702,6 +702,21 @@
   .note-card .nc-body{ padding:2px 15px 14px 33px; font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; border-top:1px dashed var(--line); margin-top:2px; padding-top:11px; }
   .note-empty{ color:var(--muted); font-size:13px; text-align:center; padding:40px 16px; line-height:1.8; }
 
+  /* ---------- 보기 토글 + 한 줄 목록(compact) ---------- */
+  .view-toggle{ display:flex; width:max-content; margin:0 0 12px auto; border:1px solid var(--line); border-radius:999px; overflow:hidden; }
+  .view-toggle button{ border:none; background:var(--surface); color:var(--muted); font-size:12.5px; font-weight:600; padding:6px 13px; cursor:pointer; transition:background .12s ease; }
+  .view-toggle button + button{ border-left:1px solid var(--line); }
+  .view-toggle button.on{ background:var(--accent); color:var(--accent-text); }
+  .entry-compact{ display:flex; align-items:center; gap:9px; padding:10px 13px; margin:0 0 6px; cursor:pointer; }
+  .entry-compact:hover{ border-color:var(--accent); }
+  .entry-compact .ec-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
+  .entry-compact .ec-star{ color:var(--accent); font-size:13px; flex-shrink:0; width:9px; text-align:center; }
+  .entry-compact .ec-date{ font-size:12.5px; font-weight:700; color:var(--text); flex-shrink:0; min-width:32px; }
+  .entry-compact .ec-time{ font-size:11.5px; color:var(--muted); flex-shrink:0; }
+  .entry-compact .ec-line{ flex:1; min-width:0; font-size:13.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .entry-compact .ec-img{ margin-right:4px; }
+  .entry-compact .ec-cat{ flex-shrink:0; font-size:10.5px; font-weight:600; color:#fff; background:var(--c,var(--muted)); padding:1px 8px; border-radius:999px; max-width:88px; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+
   /* ---------- 프로젝트 + 할일 ---------- */
   .proj-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
   .proj-head h2{ margin:0; }
@@ -1424,6 +1439,11 @@
       <button class="btn new" id="newBtn" aria-label="새 기록 작성">새 기록</button>
     </div>
 
+    <div class="view-toggle" id="viewToggle" role="group" aria-label="목록 보기 방식">
+      <button id="densityListBtn" type="button" title="한 줄 목록으로 보기">≣ 목록</button>
+      <button id="densityCardBtn" type="button" title="카드로 보기">▭ 카드</button>
+    </div>
+
     <nav class="months" id="months" aria-label="월별 필터"></nav>
     <nav class="tagbar" id="tagbar" aria-label="태그 필터"></nav>
 
@@ -1736,7 +1756,10 @@ const state = {
   draftImages: [],     // dataURLs in editor
   draftCategory: "",   // 에디터에서 선택한 분류
   catManage: false,    // 에디터 분류 '관리(삭제)' 모드
+  density: "compact",  // 메인 목록 보기: "compact"(한 줄 목록) | "card"(카드)
 };
+const DENSITY_KEY = "worklog:density";
+try { const _d = localStorage.getItem(DENSITY_KEY); if (_d === "card" || _d === "compact") state.density = _d; } catch(_){}
 
 /* ============================================================
    Cloud sync (Supabase)
@@ -2991,8 +3014,30 @@ function renderEntries(){
   enhanceClamps();
 }
 
+// "2026-06-17" → "6/17"
+function shortMD(iso){
+  const m = /^\d{4}-(\d{2})-(\d{2})/.exec(iso || "");
+  return m ? `${Number(m[1])}/${Number(m[2])}` : escapeHtml(iso || "");
+}
+// 한 줄 목록(compact) 행 — 한 화면에 많이, 탭하면 전체보기
+function renderEntryCompact(e){
+  const dispTime = entryDisplayTime(e);
+  const tm = dispTime ? `<span class="ec-time">${escapeHtml(fmtTime(dispTime))}</span>` : "";
+  const lead = e.pinnedAt
+    ? `<span class="ec-star">★</span>`
+    : `<span class="ec-dot" style="background:${e.category ? catColor(e.category) : "var(--muted)"}"></span>`;
+  const imgFlag = (e.images && e.images.length) ? `<span class="ec-img">🖼</span>` : "";
+  const cat = e.category ? `<span class="ec-cat" style="--c:${catColor(e.category)}">${escapeHtml(e.category)}</span>` : "";
+  return `<article class="entry entry-compact ${e.pinnedAt ? "is-pinned" : ""}" data-id="${escapeHtml(e.id)}">` +
+    lead +
+    `<span class="ec-date">${escapeHtml(shortMD(e.date))}</span>${tm}` +
+    `<span class="ec-line">${imgFlag}${escapeHtml(favFirstLine(e.text))}</span>${cat}` +
+  `</article>`;
+}
+
 // 읽기 우선 카드 — 본문을 그 자리에서 바로 읽음(길면 "계속 읽기")
 function renderEntry(e, query){
+  if (state.density === "compact") return renderEntryCompact(e);
   const dl = formatDateLine(e.date);
   const dateHtml = `${dl.accent ? `<span class="accent">${dl.accent}</span>` : ""}${escapeHtml(dl.full)}`;
   const imgs = e.images || [];
@@ -3991,6 +4036,24 @@ $entries.addEventListener("click", (e) => {
     if (entry) openMemoView(entry);
   }
 });
+
+/* ── 보기 토글 (카드 ↔ 한 줄 목록) ─────────────────────────── */
+const $densityListBtn = document.getElementById("densityListBtn");
+const $densityCardBtn = document.getElementById("densityCardBtn");
+function updateDensityButtons(){
+  if ($densityListBtn) $densityListBtn.classList.toggle("on", state.density === "compact");
+  if ($densityCardBtn) $densityCardBtn.classList.toggle("on", state.density === "card");
+}
+function setDensity(d){
+  if (state.density === d) return;
+  state.density = d;
+  try { localStorage.setItem(DENSITY_KEY, d); } catch(_){}
+  updateDensityButtons();
+  render();
+}
+$densityListBtn && $densityListBtn.addEventListener("click", () => setDensity("compact"));
+$densityCardBtn && $densityCardBtn.addEventListener("click", () => setDensity("card"));
+updateDensityButtons();
 
 /* ============================================================
    Search & month filter
