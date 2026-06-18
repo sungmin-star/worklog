@@ -622,6 +622,86 @@
     .to-top{ right:14px; bottom:74px; }
   }
 
+  /* ---------- 자주 보는 메모 (즐겨찾기 빠른 패널) ---------- */
+  .fav-fab{
+    position:fixed; left:18px; bottom:18px; z-index:150;
+    height:46px; padding:0 16px 0 13px; border-radius:999px;
+    border:1px solid var(--line); background:var(--surface); color:var(--text);
+    font-size:13.5px; font-weight:600; box-shadow:var(--shadow-lg); cursor:pointer;
+    display:none; align-items:center; gap:6px;
+    transition:transform .12s ease;
+  }
+  body.app-ready .fav-fab{ display:inline-flex; }
+  body.modal-open .fav-fab{ display:none; }
+  .fav-fab:hover{ transform:scale(1.05); }
+  .fav-fab:active{ transform:scale(0.94); }
+  .fav-fab .star{ color:var(--accent); font-size:16px; }
+
+  .fav-scrim{ align-items:flex-end; justify-content:flex-start; padding:20px; }
+  .fav-panel{
+    width:min(420px,100%); height:min(620px,80vh);
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:18px; box-shadow:var(--shadow-lg); overflow:hidden;
+    animation:fadeIn .22s ease both;
+  }
+  .fav-head{ display:flex; align-items:center; gap:8px; padding:14px 16px; border-bottom:1px solid var(--line); font-weight:700; }
+  .fav-head .grow{ flex:1; }
+  .fav-win{ border:1px solid var(--line); background:var(--surface); color:var(--muted); font-size:12.5px; cursor:pointer; padding:5px 10px; border-radius:8px; }
+  .fav-win:hover{ border-color:var(--accent); color:var(--accent); }
+  .fav-x{ border:none; background:transparent; color:var(--muted); font-size:15px; cursor:pointer; padding:4px 9px; border-radius:8px; }
+  .fav-x:hover{ background:var(--surface-2); color:var(--text); }
+  .fav-list{ flex:1; overflow-y:auto; padding:10px 12px 14px; display:flex; flex-direction:column; gap:8px; }
+  .fav-item{
+    text-align:left; border:1px solid var(--line); background:var(--surface);
+    border-radius:12px; padding:11px 13px; cursor:pointer; color:var(--text);
+    display:flex; flex-direction:column; gap:4px;
+  }
+  .fav-item:hover{ border-color:var(--accent); }
+  .fav-item .fav-meta{ display:flex; align-items:center; gap:7px; font-size:11.5px; color:var(--muted); flex-wrap:wrap; }
+  .fav-item .fav-cat{ padding:1px 7px; border-radius:999px; font-size:10.5px; font-weight:600; }
+  .fav-item .fav-line{ font-size:13.5px; line-height:1.5; display:-webkit-box; -webkit-line-clamp:2; -webkit-box-orient:vertical; overflow:hidden; }
+  .fav-empty{ color:var(--muted); font-size:13px; text-align:center; padding:34px 16px; line-height:1.8; }
+  @media (max-width:600px){
+    .fav-scrim{ justify-content:center; padding:0; }
+    .fav-panel{ width:100%; height:84vh; border-radius:18px 18px 0 0; align-self:flex-end; }
+    .fav-fab{ left:14px; bottom:14px; }
+    .fav-win{ display:none; }   /* 새 창 띄우기는 PC 전용 */
+  }
+
+  /* ---------- 업무 노트 (읽기 전용 매뉴얼 뷰) ---------- */
+  .note-scrim{ align-items:center; justify-content:center; padding:20px; }
+  .note-panel{
+    width:min(720px,100%); height:min(820px,88vh);
+    display:flex; flex-direction:column;
+    background:var(--surface); border:1px solid var(--line);
+    border-radius:18px; box-shadow:var(--shadow-lg); overflow:hidden;
+    animation:fadeIn .22s ease both;
+  }
+  .note-head{ display:flex; align-items:center; gap:8px; padding:14px 16px; border-bottom:1px solid var(--line); font-weight:700; font-size:15px; }
+  .note-head .grow{ flex:1; }
+  .note-tools{ display:flex; flex-direction:column; gap:9px; padding:11px 14px; border-bottom:1px solid var(--line); }
+  .note-cats{ display:flex; flex-wrap:wrap; gap:6px; }
+  .note-cat{ border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:999px; padding:5px 12px; font-size:12.5px; cursor:pointer; display:inline-flex; align-items:center; gap:6px; }
+  .note-cat.on{ border-color:var(--accent); color:var(--accent); font-weight:600; background:var(--surface-2); }
+  .note-cat .cdot{ width:8px; height:8px; border-radius:50%; }
+  .note-cat .cnt{ font-size:11px; opacity:.7; }
+  .note-toolrow{ display:flex; gap:8px; align-items:center; }
+  .note-search{ flex:1; border:1px solid var(--line); background:var(--surface-2); border-radius:10px; padding:9px 13px; font-size:13.5px; outline:none; color:var(--text); }
+  .note-search:focus{ border-color:var(--accent); }
+  .note-expand{ border:1px solid var(--line); background:var(--surface); color:var(--muted); border-radius:10px; padding:8px 12px; font-size:12.5px; cursor:pointer; white-space:nowrap; }
+  .note-expand:hover{ border-color:var(--accent); color:var(--accent); }
+  .note-body{ flex:1; overflow-y:auto; padding:12px 14px 18px; display:flex; flex-direction:column; gap:9px; }
+  .note-card{ border:1px solid var(--line); border-radius:12px; background:var(--surface); overflow:hidden; }
+  .note-card>summary{ list-style:none; cursor:pointer; padding:12px 14px; display:flex; align-items:center; gap:9px; }
+  .note-card>summary::-webkit-details-marker{ display:none; }
+  .note-card>summary::before{ content:"▸"; color:var(--muted); font-size:12px; transition:transform .15s ease; }
+  .note-card[open]>summary::before{ transform:rotate(90deg); }
+  .note-card .nc-title{ flex:1; font-size:13.5px; font-weight:600; white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
+  .note-card .nc-meta{ font-size:11px; color:var(--muted); white-space:nowrap; }
+  .note-card .nc-body{ padding:2px 15px 14px 33px; font-size:14px; line-height:1.7; white-space:pre-wrap; word-break:break-word; border-top:1px dashed var(--line); margin-top:2px; padding-top:11px; }
+  .note-empty{ color:var(--muted); font-size:13px; text-align:center; padding:40px 16px; line-height:1.8; }
+
   /* ---------- 프로젝트 + 할일 ---------- */
   .proj-head{ display:flex; align-items:center; justify-content:space-between; gap:12px; margin-bottom:16px; }
   .proj-head h2{ margin:0; }
@@ -1315,6 +1395,7 @@
         </button>
         <div class="menu" id="menu" role="menu">
           <button id="dailyBtn" role="menuitem">📅 오늘 일지</button>
+          <button id="noteBookBtn" role="menuitem">📖 업무 노트</button>
           <button id="projectsBtn" role="menuitem">🗂 프로젝트</button>
           <button id="summaryBtn" role="menuitem">✦ AI로 요약하기</button>
           <div class="divider"></div>
@@ -1451,6 +1532,38 @@
     <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 19V5M5 12l7-7 7 7"></path></svg>
   </button>
   <button class="jarvis-fab" id="jarvisFab" aria-label="자비스 열기" title="자비스">✦</button>
+  <button class="fav-fab" id="favFab" aria-label="자주 보는 메모" title="자주 보는 메모"><span class="star">★</span>자주 보는 메모</button>
+
+  <!-- 업무 노트 (읽기 전용 매뉴얼 뷰) -->
+  <div class="scrim note-scrim" id="noteScrim" aria-hidden="true">
+    <div class="note-panel" role="dialog" aria-modal="true" aria-label="업무 노트">
+      <div class="note-head">
+        <span class="grow">📖 업무 노트</span>
+        <button class="fav-x" id="noteClose" type="button" aria-label="닫기">✕</button>
+      </div>
+      <div class="note-tools">
+        <div class="note-cats" id="noteCats"></div>
+        <div class="note-toolrow">
+          <input class="note-search" id="noteSearch" type="search" placeholder="이 분류에서 검색…" />
+          <button class="note-expand" id="noteExpand" type="button">전체 펼치기</button>
+        </div>
+      </div>
+      <div class="note-body" id="noteBody"></div>
+    </div>
+  </div>
+
+  <!-- 자주 보는 메모 (즐겨찾기 ★ 빠른 패널) -->
+  <div class="scrim fav-scrim" id="favScrim" aria-hidden="true">
+    <div class="fav-panel" role="dialog" aria-modal="true" aria-label="자주 보는 메모">
+      <div class="fav-head">
+        <span class="star" style="color:var(--accent)">★</span>
+        <span class="grow">자주 보는 메모</span>
+        <button class="fav-win" id="favWinBtn" type="button" title="새 창으로 띄워 엑셀 옆에 두고 보기">🗗 새 창</button>
+        <button class="fav-x" id="favClose" type="button" aria-label="닫기">✕</button>
+      </div>
+      <div class="fav-list" id="favList"></div>
+    </div>
+  </div>
   <div class="scrim jarvis-scrim" id="jarvisScrim" aria-hidden="true">
     <div class="jarvis-panel" role="dialog" aria-modal="true" aria-label="자비스">
       <div class="jarvis-head">
@@ -4094,6 +4207,8 @@ document.addEventListener("keydown", (e) => {
     if ($summaryScrim.dataset.open === "true") { closeSummary(); return; }
     if ($viewScrim.dataset.open === "true") { closeMemoView(); return; }
     if ($dayScrim.dataset.open === "true") { closeDayList(); return; }
+    if ($favScrim.dataset.open === "true") { closeFavPanel(); return; }
+    if ($noteScrim.dataset.open === "true") { closeNoteBook(); return; }
     if ($editorScrim.dataset.open === "true") { closeEditor(); return; }
     if ($menu.dataset.open === "true") { setMenu(false); return; }
     if ($sidebar.dataset.open === "true") { closeSidebar(); return; }
@@ -4218,6 +4333,191 @@ function closeMemoView(){
     document.body.classList.remove("modal-open");
 }
 function currentViewEntry(){ return state.entries.find(x => x.id === viewingId) || null; }
+
+/* ============================================================
+   자주 보는 메모 — 즐겨찾기(★) 빠른 패널 + PC 새 창
+   ============================================================ */
+const $favScrim = document.getElementById("favScrim");
+const $favList  = document.getElementById("favList");
+const $favFab   = document.getElementById("favFab");
+function favEntries(){
+  return state.entries
+    .filter(e => e.pinnedAt && !e.deletedAt)
+    .sort((a, b) => (b.pinnedAt || 0) - (a.pinnedAt || 0));
+}
+function favFirstLine(t){
+  const s = (t || "").trim();
+  if (!s) return "(글 없음)";
+  return (s.split("\n").map(x => x.trim()).find(Boolean)) || "(글 없음)";
+}
+function renderFavList(){
+  const list = favEntries();
+  if (!list.length){
+    $favList.innerHTML = `<div class="fav-empty">아직 즐겨찾기한 메모가 없어요.<br>자주 보는 메모의 <b>☆ 별</b>을 눌러두면<br>여기 모여서 한 번에 볼 수 있어요.</div>`;
+    return;
+  }
+  $favList.innerHTML = list.map(e => {
+    let dl = e.date; try { dl = formatDateLine(e.date).full; } catch(_){}
+    const cat = e.category ? `<span class="fav-cat" style="background:${catColor(e.category)};color:#fff">${escapeHtml(e.category)}</span>` : "";
+    const dt = entryDisplayTime(e);
+    const tm = dt ? `<span>🕘 ${escapeHtml(fmtTime(dt))}</span>` : "";
+    return `<button class="fav-item" type="button" data-favid="${escapeHtml(e.id)}">` +
+      `<span class="fav-meta">${cat}<span>${escapeHtml(dl)}</span>${tm}</span>` +
+      `<span class="fav-line">${escapeHtml(favFirstLine(e.text))}</span>` +
+    `</button>`;
+  }).join("");
+}
+function openFavPanel(){
+  renderFavList();
+  $favScrim.dataset.open = "true";
+  $favScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeFavPanel(){
+  $favScrim.dataset.open = "false";
+  $favScrim.setAttribute("aria-hidden", "true");
+  if ($editorScrim.dataset.open !== "true" && $viewScrim.dataset.open !== "true")
+    document.body.classList.remove("modal-open");
+}
+$favFab && $favFab.addEventListener("click", openFavPanel);
+document.getElementById("favClose").addEventListener("click", closeFavPanel);
+$favScrim.addEventListener("click", (e) => { if (e.target === $favScrim) closeFavPanel(); });
+$favList.addEventListener("click", (e) => {
+  const it = e.target.closest("[data-favid]");
+  if (!it) return;
+  const entry = state.entries.find(x => x.id === it.dataset.favid);
+  if (!entry) return;
+  closeFavPanel();
+  openMemoView(entry);
+});
+
+/* PC 전용 — 즐겨찾기 메모를 작은 새 창으로 띄워 엑셀 옆에 두고 보기(참조용 스냅샷) */
+document.getElementById("favWinBtn").addEventListener("click", () => {
+  const list = favEntries();
+  const w = window.open("", "worklogFav", "width=440,height=680,menubar=no,toolbar=no,location=no,status=no");
+  if (!w){ showToast("팝업이 차단됐어요 — 팝업 허용 후 다시 시도해주세요"); return; }
+  const dark = (typeof effectiveDark === "function") && effectiveDark();
+  const cards = list.length ? list.map(e => {
+    let dl = e.date; try { dl = formatDateLine(e.date).full; } catch(_){}
+    const dt = entryDisplayTime(e);
+    const meta = [e.category || "", dl, dt ? fmtTime(dt) : ""].filter(Boolean).map(escapeHtml).join(" · ");
+    return `<article><h3>${escapeHtml(favFirstLine(e.text))}</h3><div class="m">${meta}</div><pre>${escapeHtml(e.text || "")}</pre></article>`;
+  }).join("") : `<p class="empty">즐겨찾기한 메모가 없어요. 메모의 ☆ 별을 눌러 추가하세요.</p>`;
+  const bg = dark ? "#1c1d20" : "#fbfbfd", fg = dark ? "#e9eaee" : "#1c2433", line = dark ? "#34363c" : "#e2e6ee", sub = dark ? "#9aa0ac" : "#5b6577";
+  w.document.open();
+  w.document.write(`<!doctype html><html lang="ko"><head><meta charset="utf-8"><title>자주 보는 메모</title>` +
+    `<meta name="viewport" content="width=device-width, initial-scale=1">` +
+    `<style>` +
+    `body{margin:0;font-family:"Apple SD Gothic Neo",-apple-system,system-ui,sans-serif;background:${bg};color:${fg};padding:14px;line-height:1.6;}` +
+    `h2{margin:0 0 12px;font-size:16px;}` +
+    `article{border:1px solid ${line};border-radius:12px;padding:12px 14px;margin-bottom:10px;}` +
+    `h3{margin:0 0 4px;font-size:14px;}` +
+    `.m{color:${sub};font-size:11.5px;margin-bottom:8px;}` +
+    `pre{white-space:pre-wrap;word-break:break-word;margin:0;font:inherit;font-size:13.5px;}` +
+    `.empty{color:${sub};text-align:center;padding:40px 10px;}` +
+    `.note{color:${sub};font-size:11px;text-align:center;margin-top:6px;}` +
+    `</style></head><body>` +
+    `<h2>★ 자주 보는 메모</h2>${cards}` +
+    `<div class="note">참조용 스냅샷 · 내용이 바뀌면 앱에서 ‘새 창’을 다시 눌러주세요</div>` +
+    `</body></html>`);
+  w.document.close();
+});
+
+/* ============================================================
+   업무 노트 — 분류별 읽기 전용 매뉴얼 뷰 (접기/펼치기 + 검색)
+   ============================================================ */
+const $noteScrim  = document.getElementById("noteScrim");
+const $noteCats   = document.getElementById("noteCats");
+const $noteBody   = document.getElementById("noteBody");
+const $noteSearch = document.getElementById("noteSearch");
+const $noteExpand = document.getElementById("noteExpand");
+const noteState = { category: null, q: "", allOpen: false };
+
+function noteCatList(){
+  const m = new Map();
+  for (const e of state.entries){
+    if (e.deletedAt) continue;
+    const key = e.category || "";
+    m.set(key, (m.get(key) || 0) + 1);
+  }
+  // 개수 많은 순, '미분류'(빈 분류)는 맨 끝으로
+  return [...m.entries()].sort((a, b) => {
+    if ((a[0] === "") !== (b[0] === "")) return a[0] === "" ? 1 : -1;
+    return b[1] - a[1];
+  });
+}
+function renderNoteCats(){
+  $noteCats.innerHTML = noteCatList().map(([name, n]) => {
+    const on = name === noteState.category;
+    const label = name || "미분류";
+    const dot = name ? `<span class="cdot" style="background:${catColor(name)}"></span>` : "";
+    return `<button class="note-cat ${on ? "on" : ""}" type="button" data-notecat="${escapeHtml(name)}">${dot}${escapeHtml(label)}<span class="cnt">${n}</span></button>`;
+  }).join("");
+}
+function noteListFor(){
+  const q = noteState.q.trim().toLowerCase();
+  return state.entries
+    .filter(e => !e.deletedAt && (e.category || "") === (noteState.category || ""))
+    .filter(e => !q || (e.text || "").toLowerCase().includes(q))
+    .sort((a, b) => {
+      if (!!a.pinnedAt !== !!b.pinnedAt) return a.pinnedAt ? -1 : 1;   // 즐겨찾기 먼저
+      return (b.date || "").localeCompare(a.date || "") || (b.createdAt || 0) - (a.createdAt || 0);
+    });
+}
+function renderNoteBody(){
+  const list = noteListFor();
+  if (!list.length){
+    $noteBody.innerHTML = `<div class="note-empty">${noteState.q ? "검색 결과가 없어요." : "이 분류에 기록이 없어요."}</div>`;
+    return;
+  }
+  $noteBody.innerHTML = list.map(e => {
+    let dl = e.date; try { dl = formatDateLine(e.date).full; } catch(_){}
+    const dt = entryDisplayTime(e);
+    const meta = [dl, dt ? fmtTime(dt) : ""].filter(Boolean).map(escapeHtml).join(" · ");
+    const star = e.pinnedAt ? "★ " : "";
+    return `<details class="note-card"${noteState.allOpen ? " open" : ""}>` +
+      `<summary><span class="nc-title">${star}${escapeHtml(favFirstLine(e.text))}</span><span class="nc-meta">${meta}</span></summary>` +
+      `<div class="nc-body">${escapeHtml(e.text || "")}</div>` +
+    `</details>`;
+  }).join("");
+}
+function openNoteBook(){
+  setMenu(false);
+  if (noteState.category === null){       // 기본 분류 = 가장 많은 분류
+    const cats = noteCatList();
+    noteState.category = cats.length ? cats[0][0] : "";
+  }
+  noteState.q = ""; noteState.allOpen = false;
+  if ($noteSearch) $noteSearch.value = "";
+  if ($noteExpand) $noteExpand.textContent = "전체 펼치기";
+  renderNoteCats();
+  renderNoteBody();
+  $noteScrim.dataset.open = "true";
+  $noteScrim.setAttribute("aria-hidden", "false");
+  document.body.classList.add("modal-open");
+}
+function closeNoteBook(){
+  $noteScrim.dataset.open = "false";
+  $noteScrim.setAttribute("aria-hidden", "true");
+  document.body.classList.remove("modal-open");
+}
+const $noteBookBtn = document.getElementById("noteBookBtn");
+$noteBookBtn && $noteBookBtn.addEventListener("click", openNoteBook);
+document.getElementById("noteClose").addEventListener("click", closeNoteBook);
+$noteScrim.addEventListener("click", (e) => { if (e.target === $noteScrim) closeNoteBook(); });
+$noteCats.addEventListener("click", (e) => {
+  const c = e.target.closest("[data-notecat]");
+  if (!c) return;
+  noteState.category = c.dataset.notecat;
+  renderNoteCats();
+  renderNoteBody();
+});
+$noteSearch.addEventListener("input", () => { noteState.q = $noteSearch.value; renderNoteBody(); });
+$noteExpand.addEventListener("click", () => {
+  noteState.allOpen = !noteState.allOpen;
+  $noteExpand.textContent = noteState.allOpen ? "전체 접기" : "전체 펼치기";
+  renderNoteBody();
+});
 
 document.getElementById("viewClose").addEventListener("click", closeMemoView);
 document.getElementById("viewCloseBtn").addEventListener("click", closeMemoView);
