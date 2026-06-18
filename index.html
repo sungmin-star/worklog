@@ -710,7 +710,10 @@
   .entry-compact{ display:flex; align-items:center; gap:9px; padding:10px 13px; margin:0 0 6px; cursor:pointer; }
   .entry-compact:hover{ border-color:var(--accent); }
   .entry-compact .ec-dot{ width:8px; height:8px; border-radius:50%; flex-shrink:0; }
-  .entry-compact .ec-star{ color:var(--accent); font-size:13px; flex-shrink:0; width:9px; text-align:center; }
+  .entry-compact .ec-pin{ flex-shrink:0; border:none; background:transparent; color:var(--muted); font-size:16px; line-height:1; cursor:pointer; padding:2px 3px; border-radius:7px; }
+  .entry-compact .ec-pin.on{ color:var(--accent); }
+  .entry-compact .ec-pin:hover{ background:var(--surface-2); }
+  #viewPinBtn.on{ color:var(--accent); border-color:var(--accent); }
   .entry-compact .ec-date{ font-size:12.5px; font-weight:700; color:var(--text); flex-shrink:0; min-width:32px; }
   .entry-compact .ec-time{ font-size:11.5px; color:var(--muted); flex-shrink:0; }
   .entry-compact .ec-line{ flex:1; min-width:0; font-size:13.5px; color:var(--text); white-space:nowrap; overflow:hidden; text-overflow:ellipsis; }
@@ -1538,6 +1541,7 @@
       </div>
       <div class="view-body" id="viewBody"></div>
       <div class="modal-actions">
+        <button class="btn ghost" id="viewPinBtn" type="button">☆ 고정</button>
         <button class="btn ghost" id="viewTrashBtn" type="button">🗑 삭제</button>
         <div class="right" style="margin-left:auto">
           <button class="btn" id="viewEditBtn" type="button">✏️ 수정</button>
@@ -3023,15 +3027,14 @@ function shortMD(iso){
 function renderEntryCompact(e){
   const dispTime = entryDisplayTime(e);
   const tm = dispTime ? `<span class="ec-time">${escapeHtml(fmtTime(dispTime))}</span>` : "";
-  const lead = e.pinnedAt
-    ? `<span class="ec-star">★</span>`
-    : `<span class="ec-dot" style="background:${e.category ? catColor(e.category) : "var(--muted)"}"></span>`;
+  const dot = `<span class="ec-dot" style="background:${e.category ? catColor(e.category) : "var(--muted)"}"></span>`;
   const imgFlag = (e.images && e.images.length) ? `<span class="ec-img">🖼</span>` : "";
   const cat = e.category ? `<span class="ec-cat" style="--c:${catColor(e.category)}">${escapeHtml(e.category)}</span>` : "";
+  const pin = `<button class="ec-pin ${e.pinnedAt ? "on" : ""}" type="button" data-pin="${escapeHtml(e.id)}" aria-label="자주 보는 메모에 고정" title="${e.pinnedAt ? "자주 보는 메모에서 빼기" : "자주 보는 메모에 고정"}">${e.pinnedAt ? "★" : "☆"}</button>`;
   return `<article class="entry entry-compact ${e.pinnedAt ? "is-pinned" : ""}" data-id="${escapeHtml(e.id)}">` +
-    lead +
+    dot +
     `<span class="ec-date">${escapeHtml(shortMD(e.date))}</span>${tm}` +
-    `<span class="ec-line">${imgFlag}${escapeHtml(favFirstLine(e.text))}</span>${cat}` +
+    `<span class="ec-line">${imgFlag}${escapeHtml(favFirstLine(e.text))}</span>${cat}${pin}` +
   `</article>`;
 }
 
@@ -4349,7 +4352,13 @@ function closeSummary(){
 const $viewScrim = document.getElementById("viewScrim");
 const $viewBody = document.getElementById("viewBody");
 const $viewTitle = document.getElementById("viewTitle");
+const $viewPinBtn = document.getElementById("viewPinBtn");
 let viewingId = null;
+function setViewPinBtn(pinned){
+  if (!$viewPinBtn) return;
+  $viewPinBtn.textContent = pinned ? "★ 고정됨" : "☆ 고정";
+  $viewPinBtn.classList.toggle("on", !!pinned);
+}
 
 function openMemoView(entry){
   if (!entry) return;
@@ -4363,6 +4372,7 @@ function openMemoView(entry){
   const len = textLen(entry.text);
   const lenHtml = len ? `<span class="entry-chars">${fmtNum(len)}자</span>` : "";
   $viewTitle.innerHTML = `${entry.pinnedAt ? "★ " : ""}${escapeHtml(dateLabel)}`;
+  setViewPinBtn(entry.pinnedAt);
 
   let html = `<div class="view-meta">${timeHtml}${catHtml}${lenHtml}</div>`;
   if (entry.text && entry.text.trim()){
@@ -4585,6 +4595,19 @@ $noteExpand.addEventListener("click", () => {
 document.getElementById("viewClose").addEventListener("click", closeMemoView);
 document.getElementById("viewCloseBtn").addEventListener("click", closeMemoView);
 $viewScrim.addEventListener("click", (e) => { if (e.target === $viewScrim) closeMemoView(); });
+$viewPinBtn && $viewPinBtn.addEventListener("click", () => {
+  const entry = currentViewEntry();
+  if (!entry) return;
+  entry.pinnedAt = entry.pinnedAt ? null : Date.now();
+  entry.updatedAt = Date.now();
+  saveEntry(entry).catch(err => { console.error(err); showToast("저장에 실패했어요"); });
+  updateSyncIndicator();
+  setViewPinBtn(entry.pinnedAt);
+  let dl = entry.date; try { dl = formatDateLine(entry.date).full; } catch(_){}
+  $viewTitle.innerHTML = `${entry.pinnedAt ? "★ " : ""}${escapeHtml(dl)}`;
+  showToast(entry.pinnedAt ? "자주 보는 메모에 고정했어요" : "고정을 해제했어요");
+  render();
+});
 document.getElementById("viewEditBtn").addEventListener("click", () => {
   const entry = currentViewEntry();
   closeMemoView();
